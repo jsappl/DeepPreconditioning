@@ -1,0 +1,17 @@
+#!/bin/sh
+cd ${0%/*} || exit 1 # run from this directory
+rm log.* 2> /dev/null
+rm -r 0.* [1-9]*
+
+# Source tutorial run functions
+. /opt/openfoam7/bin/tools/RunFunctions
+
+# Meshing
+runApplication blockMesh
+runApplication snappyHexMesh -overwrite
+
+cp 0/alpha.water.org 0/alpha.water
+runApplication setFields
+runApplication $(getApplication)
+
+#------------------------------------------------------------------------------

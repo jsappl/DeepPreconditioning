@@ -1,0 +1,108 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  7
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      snappyHexMeshDict;
+}
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+castellatedMesh true;
+snap false;
+addLayers false;
+
+geometry
+{
+    baffle
+    {
+        type searchableBox;
+        min (xx yy zz);
+        max (xx yy zz);
+    }
+};
+
+castellatedMeshControls
+{
+    maxLocalCells 0;
+    maxGlobalCells 2000;
+    minRefinementCells 0;
+    nCellsBetweenLevels 1;
+
+    features ();
+
+    refinementSurfaces
+    {
+        baffle
+        {
+            level (1 1);
+            patchInfo
+            {
+                type wall;
+            }
+        }
+    }
+
+    resolveFeatureAngle 30;
+
+    refinementRegions
+    {
+    }
+
+    locationInMesh (24.12345 -0.12345e-05 -0.12345e-05); // Inside point
+    allowFreeStandingZoneFaces false;
+}
+
+snapControls
+{
+    nSmoothPatch 3;
+    tolerance 1.0;
+    nSolveIter 300;
+    nRelaxIter 5;
+
+//     nFeatureSnapIter 10;
+//     implicitFeatureSnap false;
+//     explicitFeatureSnap true;
+//     multiRegionFeatureSnap true;
+}
+
+addLayersControls
+{
+    relativeSizes true;
+
+    layers
+    {
+    }
+
+    expansionRatio 1.0;
+    finalLayerThickness 0.3;
+    minThickness 0.25;
+    nGrow 0;
+    featureAngle 30;
+//     nRelaxIter 5;
+//     nSmoothSurfaceNormals 1;
+//     nSmoothNormals 3;
+//     nSmoothThickness 10;
+    maxFaceThicknessRatio 0.5;
+//     maxThicknessToMedialRatio 0.3;
+//     minMedianAxisAngle 90;
+    nBufferCellsNoExtrude 0;
+    nLayerIter 50;
+//     nRelaxedIter 20;
+}
+
+meshQualityControls
+{
+    #include "${FOAM_ETC}/caseDicts/mesh/generation/meshQualityDict"
+}
+
+mergeTolerance 1E-6;
+
+// ************************************************************************* //

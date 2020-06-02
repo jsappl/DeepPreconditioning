@@ -1,0 +1,187 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  7
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      blockMeshDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+convertToMeters 1;
+
+res 2; // cells per 0.5 m
+depth #calc "-0.5/$res";
+vertices
+(
+    (0 0 0)
+    (1 0 0)
+    (25 0 0)
+    (25.5 0 0)
+    (0 -0.5 0)
+    (1 -0.5 0)
+    (25 -0.5 0)
+    (25.5 -0.5 0)
+    (-0.5 -1 0)
+    (0 -1 0)
+    (1 -1 0)
+    (25 -1 0)
+    (-0.5 -1.5 0)
+    (0 -1.5 0)
+    (1 -1.5 0)
+    (25 -1.5 0)
+    (0 -6 0)
+    (1 -6 0)
+    (25 -4.5 0)
+    (0 -7 0)
+    (1 -7 0)
+    // fake z dim
+    (0 0 $depth)
+    (1 0 $depth)
+    (25 0 $depth)
+    (25.5 0 $depth)
+    (0 -0.5 $depth)
+    (1 -0.5 $depth)
+    (25 -0.5 $depth)
+    (25.5 -0.5 $depth)
+    (-0.5 -1 $depth)
+    (0 -1 $depth)
+    (1 -1 $depth)
+    (25 -1 $depth)
+    (-0.5 -1.5 $depth)
+    (0 -1.5 $depth)
+    (1 -1.5 $depth)
+    (25 -1.5 $depth)
+    (0 -6 $depth)
+    (1 -6 $depth)
+    (25 -4.5 $depth)
+    (0 -7 $depth)
+    (1 -7 $depth)
+);
+
+blocks
+(
+    hex (4 5 26 25 0 1 22 21) (#calc "2*$res" 1 $res) simpleGrading (1 1 1)
+    hex (5 6 27 26 1 2 23 22) (#calc "48*$res" 1 $res) simpleGrading (1 1 1)
+    hex (6 7 28 27 2 3 24 23) ($res 1 $res) simpleGrading (1 1 1) // outlet
+    hex (9 10 31 30 4 5 26 25) (#calc "2*$res" 1 $res) simpleGrading (1 1 1)
+    hex (10 11 32 31 5 6 27 26) (#calc "48*$res" 1 $res) simpleGrading (1 1 1)
+    hex (12 13 34 33 8 9 30 29) ($res 1 $res) simpleGrading (1 1 1) // inlet 
+    hex (13 14 35 34 9 10 31 30) (#calc "2*$res" 1 $res) simpleGrading (1 1 1)
+    hex (14 15 36 35 10 11 32 31) (#calc "48*$res" 1 $res) simpleGrading (1 1 1)
+    hex (16 17 38 37 13 14 35 34) (#calc "2*$res" 1 #calc "9*$res") simpleGrading (1 1 1)
+    hex (17 18 39 38 14 15 36 35) (#calc "48*$res" 1 #calc "9*$res") simpleGrading (1 1 1)
+    hex (19 20 41 40 16 17 38 37) (#calc "2*$res" 1 #calc "2*$res") simpleGrading (1 1 1) // hopper
+);
+
+edges
+(
+);
+
+boundary
+(
+    inlet
+    {
+        type patch;
+        faces
+        (
+            (12 8 29 33)
+        );
+    }
+    outlet
+    {
+        type patch;
+        faces
+        (
+            (3 7 28 24)
+        );
+    }
+    outlet_bot
+    {
+        type patch;
+        faces
+        (
+            (20 19 40 41)
+        );
+    }
+    bot
+    {
+        type wall;
+        faces
+        (
+            (18 17 38 39)
+            (17 20 41 38)
+        );
+    }
+    top
+    {
+        type wall;
+        faces
+        (
+            (0 1 22 21)
+            (1 2 23 22)
+            (2 3 24 23)
+        );
+    }
+    wall-surface_body
+    {
+        type wall;
+        faces
+        (
+            // inlet pipe
+            (13 12 33 34)
+            (8 9 30 29)
+            // outlet pipe
+            (7 6 27 28)
+            //hopper
+            (19 16 37 40)
+            // left
+            (4 0 21 25)
+            (9 4 25 30)
+            (16 13 34 37)
+            // right
+            (6 11 32 27)
+            (11 15 36 32)
+            (15 18 39 36)
+        );
+    }
+    frontAndBackPlanes
+    {
+        type empty;
+        faces
+        (
+            // front
+            (4 5 1 0)
+            (5 6 2 1)
+            (6 7 3 2)
+            (9 10 5 4)
+            (10 11 6 5)
+            (12 13 9 8)
+            (13 14 10 9)
+            (14 15 11 10)
+            (16 17 14 13)
+            (17 18 15 14)
+            (19 20 17 16)
+            // back
+            (21 22 26 25)
+            (22 23 27 26)
+            (23 24 28 27)
+            (30 25 26 31)
+            (31 26 27 32)
+            (29 30 34 33)
+            (34 30 31 35)
+            (35 31 32 36)
+            (37 34 35 38)
+            (38 35 36 39)
+            (40 37 38 41)
+        );
+    }
+);
+
+// ************************************************************************* //
