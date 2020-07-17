@@ -1,5 +1,7 @@
 numpy==1.18.4
+numpy-stl==2.11.2
 pyamg==4.0.0
 scipy==1.4.1
 tensorboard==2.2.1
 torch==1.5.0
+triangle==20200424
