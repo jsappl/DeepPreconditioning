@@ -2,7 +2,7 @@
 This has been tested with
 * Ubuntu 18.04.4 LTS (GNU/Linux 4.15.0-112-generic x86_64)
 * Python 3.6.9
-* CUDA 10.2
+* CUDA 11.0
 
 Clone this repo using `git clone --recurse-submodules` which also pulls content from submodules. Initialize a virtual environment and install necessary dependencies with
 ```shell
