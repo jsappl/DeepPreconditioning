@@ -1,4 +1,4 @@
-numpy==1.18.4
+numpy==1.22.0
 numpy-stl==2.11.2
 pyamg==4.0.0
 scipy==1.4.1
