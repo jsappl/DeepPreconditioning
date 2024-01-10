@@ -1,4 +1,5 @@
 # Custom
+pyrightconfig.json
 runs/
 *.pt
 dynamicCode
@@ -142,6 +143,12 @@ target/
 
 # pyenv
 .python-version
+
+# pdm
+.pdm.toml
+.pdm-python
+.pdm-build/
+__pypackages__/
 
 # celery beat schedule file
 celerybeat-schedule

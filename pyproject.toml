@@ -1,0 +1,42 @@
+[project]
+name = "uibk.deep-preconditioning"
+version = "0.1.0"
+description = "Design preconditioners with a CNN to accelerate the conjugate gradient method."
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Johannes Sappl", email = "johannes.sappl@uibk.ac.at"},
+]
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/jsappl/DeepPreconditioning"
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm]
+package-type = "library"
+
+[tool.ruff]
+extend-exclude = ["__init__.py"]
+ignore = [
+    # Google docstring convention
+    "D203", "D204", "D213", "D215", "D400", "D404", "D406", "D407", "D408", "D409", "D413",
+]
+line-length = 120
+select = ["ARG", "B", "D", "E", "F", "I", "N", "W"]
+target-version = "py310"
+
+[tool.ruff.pydocstyle]
+convention = "google"
+
+[tool.yapf]
+based_on_style = "facebook"
+dedent_closing_brackets = false
+split_before_first_argument = true
+column_limit = 120
+blank_line_before_nested_class_or_def = true
+split_before_named_assigns = false

@@ -1,4 +1,17 @@
-# Installation
+<div align="center">
+
+# Deep Preconditioning
+
+Design preconditioners with a CNN to accelerate the conjugate gradient method.
+
+[![python](https://img.shields.io/badge/python-%3E%3D3.11-blue?logo=python)]()
+[![pdm-managed](https://img.shields.io/badge/pdm-managed-blueviolet)](https://pdm.fming.dev)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+
+</div>
+
+## Setup (Linux)
+
 This has been tested with
 * Ubuntu 18.04.4 LTS (GNU/Linux 4.15.0-112-generic x86_64)
 * Python 3.6.9
