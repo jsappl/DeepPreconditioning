@@ -23,6 +23,11 @@ build-backend = "pdm.backend"
 [tool.pdm]
 distribution = true
 
+[tool.pdm.dev-dependencies]
+notebook = [
+    "jupyter>=1.0.0",
+]
+
 [tool.ruff]
 extend-exclude = ["__init__.py"]
 ignore = [
