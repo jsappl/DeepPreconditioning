@@ -9,6 +9,8 @@ authors = [
     {name = "Johannes Sappl", email = "johannes.sappl@uibk.ac.at"},
 ]
 dependencies = [
+    "dvc>=3.50.2",
+    "dvc-webdav>=3.0.0",
     "spconv-cu120>=2.3.6",
     "torch>=2.3.0",
 ]
