@@ -4,6 +4,8 @@ stages:
     deps:
       - ./assets/data/raw/archive.zip
     outs:
-      - ./assets/data/raw/stand_small_train/
-      - ./assets/data/raw/stand_small_test/
+      - ./assets/data/raw/stand_small_train/:
+          push: false
+      - ./assets/data/raw/stand_small_test/:
+          push: false
     desc: Extract zipped raw data
