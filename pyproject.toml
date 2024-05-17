@@ -40,6 +40,9 @@ line-length = 120
 select = ["ARG", "B", "D", "E", "F", "I", "N", "W"]
 target-version = "py311"
 
+[tool.ruff.format]
+exclude = ["*"]
+
 [tool.ruff.pydocstyle]
 convention = "google"
 
