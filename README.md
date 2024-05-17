@@ -13,29 +13,44 @@ Design preconditioners with a CNN to accelerate the conjugate gradient method.
 ## Setup (Linux)
 
 This has been tested with
-* Ubuntu 18.04.4 LTS (GNU/Linux 4.15.0-112-generic x86_64)
-* Python 3.6.9
-* CUDA 11.0
 
-Clone this repo using `git clone --recurse-submodules` which also pulls content from submodules. Initialize a virtual environment and install necessary dependencies with
-```shell
-virtualenv -p python3 env
-. env/bin/activate
-pip install -r requirements.txt
+* Debian 10.2.1-6 (GNU/Linux 5.10.0-28-amd64 x86_64)
+* Intel(R) Core(TM) i9-10900KF CPU @ 3.70GHz
+* NVIDIA GeForce RTX 3070
+* NVIDIA Driver Version 550.54.15
+* CUDA Version 12.4
+* Python 3.11.9
+
+Clone this repository and `cd` into the project root.
+
+```bash
+git clone git@github.com:jsappl/DeepPreconditioning.git
+cd DeepPreconditioning/
 ```
 
-Compile the `spconv` package according to [these instructions](https://github.com/traveller59/spconv#install-on-ubuntu-16041804). No need to clone the repo itself since it is already included as a submodule. If you run into problems during the installation please refer to their issues section. We only use the `spconv` package as provided.
+We use [PDM](https://pdm-project.org/en/stable/) to build the package and manage dependencies so make sure it is installed.
+After selecting a Python interpreter, PDM will ask you whether you want to create a virtual environment for the project.
+Having one is optional but highly recommended.
+PDM will try to auto-detect possible virtual environments.
+Run `pdm install` to install dependencies from the `pdm.lock` file and restore the project environment.
 
-Install OpenFOAM 7 with `sudo apt install openfoam7`. We implemented a custom `interFoam` solver which dumps **L** and **d** from the discrete pressure Poisson equation **Lp=d** to disk. Change the directory `cd foam/newInterFoam/` and compile it by running `wmake`. Check out [https://openfoam.org/download/7-ubuntu/](https://openfoam.org/download/7-ubuntu/) if you have questions regarding the installation process of OpenFOAM 7 on Ubuntu.
+## Developing
 
-# Training/testing the model
-In the `preconditioner/` folder you can find [PyTorch](https://pytorch.org/) code for the machine learning part. Adjust the settings to your liking in `config.py`. Generate a data set of system matrices **L** representing the discretized Laplacian and start the train/test loop in the background with
-```shell
-python3 gen_data.py
-nohup python3 train.py &
+Use PDM to add another dependency and update the projects `pdm.lock` file afterward.
+
+```bash
+pdm add <some-dependency>
+pdm update
 ```
-We use [TensorBoard](https://www.tensorflow.org/tensorboard/) to log hyperparameters, train/validation loss, and the performance of the model on the test data set. Run
-```shell
-tensorboard --logdir runs/ &
-```
-if you want to monitor the loss during training and check the test results in your browser.
+
+Run `pdm sync --clean` to remove packages that are no longer in the `pdm.lock` file.
+
+Version numbers are (roughly) assigned and incremented according to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
+Write commit messages according to the [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/) convention.
+Keep a changelog and stick to this style guide <https://common-changelog.org/>.
+Use these tools for code formatting and linting.
+
+- `ruff` (includes `isort` and `flake8`)
+- `yapf`
+
+They are automatically configured by the `pyproject.toml` file.
