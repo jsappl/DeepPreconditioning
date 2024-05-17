@@ -1,0 +1,9 @@
+stages:
+  extract:
+    cmd: unzip ./assets/data/raw/archive.zip -d ./assets/data/raw/
+    deps:
+      - ./assets/data/raw/archive.zip
+    outs:
+      - ./assets/data/raw/stand_small_train/
+      - ./assets/data/raw/stand_small_test/
+    desc: Extract zipped raw data
