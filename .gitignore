@@ -1,10 +1,5 @@
 # Custom
 pyrightconfig.json
-runs/
-*.pt
-dynamicCode
-**/constant/polyMesh/
-*.stl
 
 ### OpenFOAM ###
 # Timestep directories
