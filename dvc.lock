@@ -1,0 +1,20 @@
+schema: '2.0'
+stages:
+  extract:
+    cmd: unzip ./assets/data/raw/archive.zip -d ./assets/data/raw/
+    deps:
+    - path: ./assets/data/raw/archive.zip
+      hash: md5
+      md5: 5fec93197ff1c389e18f9acf02e1d00e
+      size: 9069236425
+    outs:
+    - path: ./assets/data/raw/stand_small_test/
+      hash: md5
+      md5: 2d661d03282605379d6f3e2ca0acbf58.dir
+      size: 93093259
+      nfiles: 1000
+    - path: ./assets/data/raw/stand_small_train/
+      hash: md5
+      md5: d1cb9475cd45a296650d969d5f3165ed.dir
+      size: 9352344396
+      nfiles: 100000
