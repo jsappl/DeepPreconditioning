@@ -44,18 +44,32 @@ class StAnDataSet(Dataset):
         """Return the number of batches."""
         return len(self.files) // self.batch_size
 
-    def __getitem__(self, index: int) -> spconv.SparseConvTensor:
-        """Return a single batch of data.
+    def __getitem__(self, index: int) -> tuple[spconv.SparseConvTensor, torch.Tensor, torch.Tensor]:
+        """Return a single batch of linear system data.
 
-        The returned tensor format is as required in the `traveller59/spconv` package.
+        The tensor format is as required in the `traveller59/spconv` package. The matrices, solutions, and right-hand
+        sides are zero-padded to fit the maximum degrees of freedom.
         """
-        batch = dict(features=list(), indices=list())
+        batch = dict(features=list(), indices=list(), solution=list(), right_hand_side=list())
         for batch_index in range(index * self.batch_size, (index + 1) * self.batch_size):
-            indices, values, _, _ = np.load(self.files[index]).values()
+            indices, values, solutions, right_hand_sides = np.load(self.files[index]).values()
             batch["features"].append(np.expand_dims(values, axis=-1))
             batch["indices"].append(np.concatenate((np.full((len(values), 1), batch_index), indices.T), axis=1))
+            batch["solution"].append(np.expand_dims(
+                np.pad(solutions, (0, DOF_MAX - len(solutions))),
+                axis=0,
+            ))
+            batch["right_hand_side"].append(
+                np.expand_dims(
+                    np.pad(right_hand_sides, (0, DOF_MAX - len(right_hand_sides))),
+                    axis=0,
+                ))
 
         features = torch.from_numpy(np.vstack(batch["features"])).float().to(self.device)
         indices = torch.from_numpy(np.vstack(batch["indices"])).int().to(self.device)
+        matrices = spconv.SparseConvTensor(features, indices, [DOF_MAX, DOF_MAX], self.batch_size)
 
-        return spconv.SparseConvTensor(features, indices, [DOF_MAX, DOF_MAX], self.batch_size)
+        solutions = torch.from_numpy(np.vstack(batch["solution"])).float().to(self.device)
+        right_hand_sides = torch.from_numpy(np.vstack(batch["right_hand_side"])).float().to(self.device)
+
+        return matrices, solutions, right_hand_sides
