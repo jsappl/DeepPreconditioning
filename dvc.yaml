@@ -3,9 +3,4 @@ stages:
     cmd: unzip ./assets/data/raw/archive.zip -d ./assets/data/raw/
     deps:
       - ./assets/data/raw/archive.zip
-    outs:
-      - ./assets/data/raw/stand_small_train/:
-          push: false
-      - ./assets/data/raw/stand_small_test/:
-          push: false
     desc: Extract zipped raw data
