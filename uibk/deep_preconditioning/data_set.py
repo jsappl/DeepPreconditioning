@@ -4,6 +4,7 @@ Classes:
     StAnDataSet: A large collection of solved linear static analysis problems on frame structures.
 """
 
+import random
 from pathlib import Path
 
 import numpy as np
@@ -21,12 +22,13 @@ class StAnDataSet(Dataset):
     See also https://www.kaggle.com/datasets/zurutech/stand-small-problems.
     """
 
-    def __init__(self, stage: str, batch_size: int, root: Path = ROOT) -> None:
+    def __init__(self, stage: str, batch_size: int, shuffle: bool, root: Path = ROOT) -> None:
         """Initialize the data set.
 
         Args:
             stage: One of "train" or "test".
             batch_size: Number of samples per batch.
+            shuffle: Whether to shuffle the data.
             root: Path to the data directory.
 
         Raises:
@@ -34,6 +36,8 @@ class StAnDataSet(Dataset):
         """
         assert stage in ["train", "test"], f"Invalid stage {stage}"
         self.files = list(root.glob(f"stand_small_{stage}/*.npz"))
+        if shuffle:
+            random.shuffle(self.files)
 
         self.batch_size = batch_size
 

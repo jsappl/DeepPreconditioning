@@ -1,17 +1,33 @@
-"""Train the model."""
+"""Implement model training methods and the loop."""
+
+from typing import TYPE_CHECKING
 
 import torch
+from torch.utils.data.dataset import random_split
 from tqdm import tqdm
 
 from uibk.deep_preconditioning.data_set import StAnDataSet
 from uibk.deep_preconditioning.metrics import frobenius_loss
 from uibk.deep_preconditioning.model import PreconditionerNet
 
+if TYPE_CHECKING:
+    from torch import nn
+    from torch.optim import Optimizer
+    from torch.utils.data import Subset
+
 BATCH_SIZE: int = 32
 
 
-def _train_single_epoch(model, data_set, optimizer):
-    """Train the model for a single epoch."""
+def _train_single_epoch(model: "nn.Module", data_set: "StAnDataSet | Subset", optimizer: "Optimizer") -> None:
+    """Train the model for a single epoch.
+
+    Args:
+        model: The model to train.
+        data_set: The StAnDataSet training data set.
+        optimizer: The optimizer to train the model with.
+    """
+    model.train()
+
     for index in tqdm(range(len(data_set))):
         matrix, solution, right_hand_side = data_set[index]
         lower_triangular = model(matrix)
@@ -28,11 +44,14 @@ def main() -> None:
     device = torch.device("cuda")
 
     model = PreconditionerNet().to(device)
-    data_set = StAnDataSet("train", batch_size=BATCH_SIZE)
+
+    data_set = StAnDataSet(stage="train", batch_size=BATCH_SIZE, shuffle=True)
+    train_data, val_data = random_split(data_set, lengths=[0.95, 0.05])
+
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
     for _ in range(10):
-        _train_single_epoch(model, data_set, optimizer)
+        _train_single_epoch(model, train_data, optimizer)
 
 
 if __name__ == "__main__":
