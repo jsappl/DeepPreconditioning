@@ -6,11 +6,13 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [
+    {name = "Viktor Daropoulos", email = "Viktor.Daropoulos@student.uibk.ac.at"},
     {name = "Johannes Sappl", email = "johannes.sappl@uibk.ac.at"},
 ]
 dependencies = [
     "dvc>=3.50.2",
     "dvc-webdav>=3.0.0",
+    "kaggle>=1.6.14",
     "spconv-cu120>=2.3.6",
     "torch>=2.3.0",
 ]
