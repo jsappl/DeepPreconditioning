@@ -7,6 +7,7 @@ Classes:
 import random
 from pathlib import Path
 
+import kaggle
 import numpy as np
 import spconv.pytorch as spconv
 import torch
@@ -14,6 +15,14 @@ from torch.utils.data import Dataset
 
 ROOT: Path = Path("./assets/data/raw/")
 DOF_MAX: int = 5166  # https://www.kaggle.com/datasets/zurutech/stand-small-problems
+
+
+def download_from_kaggle() -> None:
+    """Download the StAn data set from Kaggle."""
+    assert Path.home() / ".kaggle/kaggle.json", "Kaggle API key is missing"
+
+    kaggle.api.authenticate()
+    kaggle.api.dataset_download_files(dataset="zurutech/stand-small-problems", path=ROOT, quiet=False, unzip=False)
 
 
 class StAnDataSet(Dataset):
@@ -77,3 +86,7 @@ class StAnDataSet(Dataset):
         right_hand_sides = torch.from_numpy(np.vstack(batch["right_hand_side"])).float().to(self.device)
 
         return matrices, solutions, right_hand_sides
+
+
+if __name__ == "__main__":
+    download_from_kaggle()

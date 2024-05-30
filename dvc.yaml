@@ -1,6 +1,12 @@
 stages:
-  extract:
-    cmd: unzip ./assets/data/raw/archive.zip -d ./assets/data/raw/
+  download:
+    cmd: python ./uibk/deep_preconditioning/data_set.py
+    outs:
+      - ./assets/data/raw/stand-small-problems.zip:
+          cache: false
+    desc: Download the raw zipped data set from Kaggle
+  unzip:
+    cmd: unzip ./assets/data/raw/stand-small-problems.zip -d ./assets/data/raw/
     deps:
-      - ./assets/data/raw/archive.zip
-    desc: Extract zipped raw data
+      - ./assets/data/raw/stand-small-problems.zip
+    desc: Unzip the raw data set
