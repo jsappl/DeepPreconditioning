@@ -5,7 +5,7 @@
 groups = ["default", "notebook"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.1"
-content_hash = "sha256:20f32aa4c30246782a50665afd2c1a903e15bf728554e885b487217a36120c01"
+content_hash = "sha256:67a0e2b8d9f693b0dcefe948dce10f3f970fc2d1793028fcfa0893fc74d88869"
 
 [[package]]
 name = "aiohttp"
@@ -896,6 +896,28 @@ dependencies = [
 files = [
     {file = "dvc-webdav-3.0.0.tar.gz", hash = "sha256:65e7eef2ebc83415a8ddbdcb579bf219a3797c67e7a62d4568c5c82de2b6a508"},
     {file = "dvc_webdav-3.0.0-py3-none-any.whl", hash = "sha256:90f19ae5bd6254723bea0a1b47bfafc636769f454777c4ef1d6a9d74dca4e525"},
+]
+
+[[package]]
+name = "dvclive"
+version = "3.46.0"
+requires_python = ">=3.9"
+summary = "Experiments logger for ML projects."
+groups = ["default"]
+dependencies = [
+    "dvc-render<2,>=1.0.0",
+    "dvc-studio-client<1,>=0.20",
+    "dvc>=3.48.4",
+    "funcy",
+    "gto",
+    "psutil",
+    "pynvml",
+    "ruamel-yaml",
+    "scmrepo<4,>=3",
+]
+files = [
+    {file = "dvclive-3.46.0-py3-none-any.whl", hash = "sha256:7d95a42ca6da3bfae67d82d93d7759cbaaaa3c986456dc05e9c60205ab502948"},
+    {file = "dvclive-3.46.0.tar.gz", hash = "sha256:7ff1e48dfe01d5490105dcff352a7df7facbbd536d2d914b03d52146d422ac27"},
 ]
 
 [[package]]
@@ -2545,6 +2567,17 @@ groups = ["default"]
 files = [
     {file = "pygtrie-2.5.0-py3-none-any.whl", hash = "sha256:8795cda8105493d5ae159a5bef313ff13156c5d4d72feddefacaad59f8c8ce16"},
     {file = "pygtrie-2.5.0.tar.gz", hash = "sha256:203514ad826eb403dab1d2e2ddd034e0d1534bbe4dbe0213bb0593f66beba4e2"},
+]
+
+[[package]]
+name = "pynvml"
+version = "11.5.0"
+requires_python = ">=3.6"
+summary = "Python Bindings for the NVIDIA Management Library"
+groups = ["default"]
+files = [
+    {file = "pynvml-11.5.0-py3-none-any.whl", hash = "sha256:5cce014ac01b098d08f06178f86c37be409b80b2e903a5a03ce15eed60f55e25"},
+    {file = "pynvml-11.5.0.tar.gz", hash = "sha256:d027b21b95b1088b9fc278117f9f61b7c67f8e33a787e9f83f735f0f71ac32d0"},
 ]
 
 [[package]]
