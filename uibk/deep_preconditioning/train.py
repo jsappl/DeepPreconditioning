@@ -13,18 +13,20 @@ from uibk.deep_preconditioning.model import PreconditionerNet
 if TYPE_CHECKING:
     from torch import nn
     from torch.optim import Optimizer
-    from torch.utils.data import Subset
+    from torch.utils.data import Dataset, Subset
 
 BATCH_SIZE: int = 32
 
-
-def _train_single_epoch(model: "nn.Module", data_set: "StAnDataSet | Subset", optimizer: "Optimizer") -> None:
+def _train_single_epoch(model: "nn.Module", data_set: "Dataset | Subset", optimizer: "Optimizer") -> float:
     """Train the model for a single epoch.
 
     Args:
         model: The model to train.
-        data_set: The StAnDataSet training data set.
+        data_set: The training data set.
         optimizer: The optimizer to train the model with.
+
+    Returns:
+        The average Frobenius loss on the training data.
     """
     model.train()
 

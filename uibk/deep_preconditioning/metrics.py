@@ -1,14 +1,17 @@
 """A collection of metrics to be used in the project."""
 
-import spconv.pytorch as spconv
+from typing import TYPE_CHECKING
+
 import torch
 
 from uibk.deep_preconditioning.utils import sparse_matvec_mul
 
+if TYPE_CHECKING:
+    from spconv.pytorch import SparseConvTensor
+
 
 def frobenius_loss(
-        lower_triangular: spconv.SparseConvTensor, solution: torch.Tensor,
-        right_hand_side: torch.Tensor) -> torch.Tensor:
+        lower_triangular: "SparseConvTensor", solution: torch.Tensor, right_hand_side: torch.Tensor) -> torch.Tensor:
     """Compute the Frobenius norm of the error.
 
     See also <https://arxiv.org/pdf/2305.16432>, equation (11).
