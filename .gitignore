@@ -1,5 +1,7 @@
 # Custom
 pyrightconfig.json
+.bash_history
+.viminfo
 
 ### OpenFOAM ###
 # Timestep directories
