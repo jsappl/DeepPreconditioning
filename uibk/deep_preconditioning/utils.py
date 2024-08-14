@@ -1,11 +1,14 @@
 """A collection of utility functions for the project."""
 
-import spconv.pytorch as spconv
+from typing import TYPE_CHECKING
+
 import torch
 
+if TYPE_CHECKING:
+    from spconv.pytorch import SparseConvTensor
 
-def sparse_matvec_mul(
-        spconv_batch: spconv.SparseConvTensor, vector_batch: torch.Tensor, transpose: bool) -> torch.Tensor:
+
+def sparse_matvec_mul(spconv_batch: "SparseConvTensor", vector_batch: torch.Tensor, transpose: bool) -> torch.Tensor:
     """Perform a sparse matrix-vector multiplication.
 
     Args:
@@ -21,7 +24,8 @@ def sparse_matvec_mul(
     column_indices = spconv_batch.indices[:, 1 if transpose else 2]
     output_batch = torch.zeros_like(vector_batch, device=vector_batch.device)
 
-    spconv_batch.replace_feature(spconv_batch.features * vector_batch[batch_indices, column_indices].unsqueeze(-1))
+    spconv_batch = spconv_batch.replace_feature(
+        spconv_batch.features * vector_batch[batch_indices, column_indices].unsqueeze(-1))
     for batch_index in range(spconv_batch.batch_size):
         filter = torch.where(batch_indices == batch_index)
         output_batch[batch_index] = torch.zeros(vector_batch.shape[-1], device=vector_batch.device).scatter_reduce(
