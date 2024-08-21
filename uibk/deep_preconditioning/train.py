@@ -29,15 +29,20 @@ def _train_single_epoch(model: "nn.Module", data_set: "Dataset | Subset", optimi
         The average Frobenius loss on the training data.
     """
     model.train()
+    running_loss = 0
 
-    for index in tqdm(range(len(data_set))):
-        matrix, solution, right_hand_side = data_set[index]
-        lower_triangular = model(matrix)
+    for index in range(len(data_set)):
+        systems_tril, _, _, _ = data_set[index]
+        preconditioners_tril = model(systems_tril)
 
         optimizer.zero_grad()
-        loss = frobenius_loss(lower_triangular, solution, right_hand_side)
+        loss = inverse_loss(systems_tril, preconditioners_tril)
+        running_loss += loss.item()
         loss.backward()
         optimizer.step()
+
+    return running_loss / len(data_set)
+
 
 @torch.no_grad()
 def _validate(model: "nn.Module", data_set: "Dataset | Subset") -> tuple[float, ...]:
