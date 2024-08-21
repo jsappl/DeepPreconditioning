@@ -1,10 +1,14 @@
 """A collection of utility functions for the project."""
 
+import time
 from typing import TYPE_CHECKING
 
 import torch
+from scipy.sparse.linalg import cg
 
 if TYPE_CHECKING:
+    from numpy import ndarray
+    from scipy.sparse import csr_matrix
     from spconv.pytorch import SparseConvTensor
 
 
@@ -36,3 +40,34 @@ def sparse_matvec_mul(spconv_batch: "SparseConvTensor", vector_batch: torch.Tens
         )
 
     return output_batch
+
+
+def benchmark_cg(matrix: "ndarray", right_hand_side: "ndarray",
+                 preconditioner: "ndarray | csr_matrix | None" = None) -> tuple[float, int]:
+    """Benchmark the (preconditioned) conjugate gradient method.
+
+    Args:
+        matrix: The matrix of the linear system.
+        right_hand_side: The right-hand side of the linear system.
+        preconditioner: The preconditioner for the conjugate gradient method.
+
+    Returns:
+        The duration and number of iterations until convergence.
+    """
+    iterations = 0
+
+    def _callback(_):
+        nonlocal iterations
+        iterations += 1
+
+    start_time = time.monotonic_ns()
+    cg(
+        matrix,
+        right_hand_side,
+        maxiter=512,
+        M=preconditioner,
+        callback=_callback,
+    )
+    duration = (time.monotonic_ns() - start_time) / 1e9  # convert to seconds
+
+    return duration, iterations
