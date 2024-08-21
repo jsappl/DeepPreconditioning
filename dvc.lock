@@ -14,3 +14,20 @@ stages:
       hash: md5
       md5: 5fec93197ff1c389e18f9acf02e1d00e
       size: 9069236425
+  generate:
+    cmd: python ./uibk/deep_preconditioning/generate_data.py
+    deps:
+    - path: ./uibk/deep_preconditioning/generate_data.py
+      hash: md5
+      md5: 984b0cf16fe5991017162a3e26a9fb0c
+      size: 3239
+    params:
+      params.yaml:
+        number_samples: 2
+        resolution: 128
+    outs:
+    - path: ./assets/data/raw/sludge_patterns/
+      hash: md5
+      md5: bb3531ecf789e03339a61e71b66f9961.dir
+      size: 865658
+      nfiles: 6
