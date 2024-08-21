@@ -1,21 +1,25 @@
 """Implement model training methods and the loop."""
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
+import dvc.api
+import numpy as np
 import torch
+from dvclive import Live
+from scipy.sparse import csr_matrix
 from torch.utils.data.dataset import random_split
-from tqdm import tqdm
 
-from uibk.deep_preconditioning.data_set import StAnDataSet
-from uibk.deep_preconditioning.metrics import frobenius_loss
+from uibk.deep_preconditioning.data_set import SludgePatternDataSet
+from uibk.deep_preconditioning.metrics import inverse_loss
 from uibk.deep_preconditioning.model import PreconditionerNet
+from uibk.deep_preconditioning.utils import benchmark_cg
 
 if TYPE_CHECKING:
     from torch import nn
     from torch.optim import Optimizer
     from torch.utils.data import Dataset, Subset
 
-BATCH_SIZE: int = 32
 
 def _train_single_epoch(model: "nn.Module", data_set: "Dataset | Subset", optimizer: "Optimizer") -> float:
     """Train the model for a single epoch.
@@ -119,19 +123,49 @@ class EarlyStopping():
 
 
 def main() -> None:
-    """Run the main training loop."""
+    """Run the main model training pipeline."""
     assert torch.cuda.is_available(), "CUDA not available"
     device = torch.device("cuda")
+    torch.manual_seed(69)
 
-    model = PreconditionerNet().to(device)
+    params = dvc.api.params_show()
 
-    data_set = StAnDataSet(stage="train", batch_size=BATCH_SIZE, shuffle=True)
+    data_set = SludgePatternDataSet(stage="train", batch_size=params["batch_size"], shuffle=True)
     train_data, val_data = random_split(data_set, lengths=[0.95, 0.05])
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    model = PreconditionerNet(params["channels"]).to(device)
 
-    for _ in range(10):
-        _train_single_epoch(model, train_data, optimizer)
+    optimizer = torch.optim.Adam(model.parameters(), lr=params["learning_rate"])
+    early_stopping = EarlyStopping(patience=params["patience"])
+    best_val_loss = float("inf")
+
+    live = Live(  # init logger
+        dir=str(Path("assets/dvclive/")),
+        report="html",
+        save_dvc_exp=True,
+        dvcyaml=False,
+    )
+
+    while True:
+        train_loss = _train_single_epoch(model, train_data, optimizer)
+        live.log_metric("train/loss/log_inverse", np.log(train_loss))
+
+        val_loss, durations, iterations = _validate(model, val_data)
+        live.log_metric("val/loss/log_inverse", np.log(val_loss))
+        live.log_metric("val/metric/durations", durations)
+        live.log_metric("val/metric/iterations", iterations)
+
+        if early_stopping(val_loss):
+            break
+
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+
+        torch.save(model.state_dict(), Path(f"assets/checkpoints/{model.__class__.__name__}.pt"))
+
+        live.next_step()
+
+    live.end()
 
 
 if __name__ == "__main__":
