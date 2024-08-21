@@ -2,64 +2,8 @@
 pyrightconfig.json
 .bash_history
 .viminfo
-
-### OpenFOAM ###
-# Timestep directories
-0.*
-[1-9]*
-
-# Fields that must get ignored
-*/phi*
-*/meshPhi*
-
-# Decomposed domain
-processor*
-
-# logfiles
-log.*
-*log
-
-# paraview/ParaFoam
-*.foam
-*.OpenFOAM
-*.pvsm
-
-# mesh data that is no dictionary
-constant/polyMesh/boundary*
-constant/polyMesh/faces*
-constant/polyMesh/level0Edge*
-constant/polyMesh/neighbour*
-constant/polyMesh/owner*
-constant/polyMesh/points*
-constant/polyMesh/sets
-constant/polyMesh/*
-
-# Zones and levels
-*Level*
-*Zone*
-
-# snappyHexMesh files that are not snappyHexMeshDict
-constant/polyMesh/refinementHistory*
-constant/polyMesh/surfaceIndex*
-constant/triSurface
-
-# function object and post-processing data
-forces
-postProcessing
-
-# Needed when C++ code is built using the OpenFOAM library, since it does not
-# use a "normal" build tool (make, cmake, ..).
-lnInclude
-*.dep
-linux*
-Darwin*
-
-#exclude important folders and files:
-!0/
-!constant/thermophysicalProperties
-!constant/turbulenceProperties
-!system/
-!.gitignore
+./foam/newInterFoam/Make/linux*/
+./foam/newInterFoam/platforms/
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
