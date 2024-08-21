@@ -45,7 +45,9 @@ def _sludge_pattern(resolution: int) -> None:
         for dimension in range(3):
             sludge.vectors[face_index][dimension] = vertices[face[dimension], :]
 
-    sludge.save(ROOT / "foam/sim/constant/triSurface/sludge.stl")
+    stl_directory = ROOT / "foam/sim/constant/triSurface/"
+    stl_directory.mkdir(parents=True, exist_ok=True)
+    sludge.save(stl_directory / "sludge.stl")
 
 
 def _build_matrix(csv_file: Path) -> coo_matrix:
