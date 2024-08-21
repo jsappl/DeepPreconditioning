@@ -39,6 +39,31 @@ def _train_single_epoch(model: "nn.Module", data_set: "Dataset | Subset", optimi
         loss.backward()
         optimizer.step()
 
+class EarlyStopping():
+    """Stop the training when no more significant improvement."""
+
+    def __init__(self, patience: int) -> None:
+        """Initialize the early stopping hyperparameters.
+
+        Attributes:
+            patience: Steps with no improvement after which training will be stopped.
+            local_min: The lowest validation loss cached.
+            counter: Epochs with nondecreasing validation loss.
+        """
+        self.patience = patience
+        self.local_min = float("inf")
+        self.counter = 0
+
+    def __call__(self, val_loss: float) -> bool:
+        """Check change of validation loss and update counter."""
+        if val_loss > self.local_min:
+            self.counter += 1
+        else:
+            self.local_min = val_loss
+            self.counter = 0
+
+        return self.counter >= self.patience
+
 
 def main() -> None:
     """Run the main training loop."""
