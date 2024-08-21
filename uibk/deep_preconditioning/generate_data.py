@@ -92,7 +92,7 @@ def main() -> None:
         case_directory.mkdir(parents=True, exist_ok=True)
 
         # Run simulation and dump matrix.
-        command = "docker exec openfoam /bin/bash -i -c 'cd sim/ && ./Allrun'"
+        command = "docker exec openfoam /bin/bash -i -c 'cd foam/sim/ && ./Allrun'"
         subprocess.run(command, cwd=ROOT / "foam", shell=True)
 
         matrix = _build_matrix(ROOT / "foam/sim/matrix.csv")

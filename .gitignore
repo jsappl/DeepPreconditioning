@@ -2,8 +2,8 @@
 pyrightconfig.json
 .bash_history
 .viminfo
-./foam/newInterFoam/Make/linux*/
-./foam/newInterFoam/platforms/
+foam/newInterFoam/Make/linux*
+platforms/
 
 ### Python ###
 # Byte-compiled / optimized / DLL files

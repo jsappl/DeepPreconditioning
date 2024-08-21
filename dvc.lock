@@ -1,33 +1,19 @@
 schema: '2.0'
 stages:
-  download:
-    cmd: python ./uibk/deep_preconditioning/data_set.py
-    outs:
-    - path: ./assets/data/raw/stand-small-problems.zip
-      hash: md5
-      md5: 5fec93197ff1c389e18f9acf02e1d00e
-      size: 9069236425
-  unzip:
-    cmd: unzip ./assets/data/raw/stand-small-problems.zip -d ./assets/data/raw/
-    deps:
-    - path: ./assets/data/raw/stand-small-problems.zip
-      hash: md5
-      md5: 5fec93197ff1c389e18f9acf02e1d00e
-      size: 9069236425
   generate:
     cmd: python ./uibk/deep_preconditioning/generate_data.py
     deps:
     - path: ./uibk/deep_preconditioning/generate_data.py
       hash: md5
-      md5: 744c856293e732ee2dc73f91c2a24ed2
-      size: 3335
+      md5: a38e2c7ade6d514b499edc8df29f36e6
+      size: 3436
     params:
       params.yaml:
-        number_samples: 3
+        number_samples: 10
         resolution: 128
     outs:
     - path: ./assets/data/raw/sludge_patterns/
       hash: md5
-      md5: ac79995b7674029f22d5d4dc41dd48d5.dir
-      size: 1295040
-      nfiles: 9
+      md5: a711a3a7825b204468e6dcc37f4e16bc.dir
+      size: 4316800
+      nfiles: 30
