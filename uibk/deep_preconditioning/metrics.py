@@ -28,3 +28,26 @@ def frobenius_loss(
     interim = sparse_matvec_mul(lower_triangular, interim, transpose=False)
 
     return torch.linalg.vector_norm(interim - right_hand_side, ord=2, dim=1).sum()
+
+
+def inverse_loss(systems_tril: "SparseConvTensor", preconditioners_tril: "SparseConvTensor") -> torch.Tensor:
+    """Compute how well the preconditioner approximates the matrix inverse.
+
+    Args:
+        systems_tril: Lower triangular matrices as `spconv` tensors.
+        preconditioners_tril: Lower triangular matrices as `spconv` tensors.
+
+    Returns:
+        The inverse loss on the batch.
+    """
+    preconditioners = preconditioners_tril.dense()[:, 0]
+    preconditioners = torch.matmul(preconditioners.transpose(-1, -2), preconditioners)
+
+    systems = systems_tril.dense()[:, 0]
+    systems += torch.tril(systems, -1).transpose(-1, -2)
+
+    preconditioned_systems = torch.matmul(preconditioners, systems)
+
+    identity = torch.eye(systems.shape[1]).unsqueeze(0).expand((systems.shape[0], -1, -1)).to(
+        preconditioned_systems.device)
+    return torch.linalg.matrix_norm(preconditioned_systems - identity).mean()
