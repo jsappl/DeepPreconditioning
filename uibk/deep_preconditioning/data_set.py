@@ -123,12 +123,15 @@ class StAnDataSet(Dataset):
         Raises:
             An `AssertionError` if `stage` is neither "train" nor "test" or if CUDA is not available.
         """
-        assert stage in ["train", "test"], f"Invalid stage {stage}"
-        self.files = list(root.glob(f"stand_small_{stage}/*.npz"))
+        match stage:
+            case "train" | "test":
+                self.files = list(root.glob(f"stand_small_{stage}/*.npz"))
+            case _:
+                raise AssertionError(f"Invalid stage {stage}")
         if shuffle:
             random.shuffle(self.files)
-
         self.batch_size = batch_size
+        self.dof_max = 5166  # https://www.kaggle.com/datasets/zurutech/stand-small-problems
 
         assert torch.cuda.is_available(), "CUDA is mandatory but not available"
         self.device = torch.device("cuda")
@@ -137,36 +140,42 @@ class StAnDataSet(Dataset):
         """Return the number of batches."""
         return len(self.files) // self.batch_size
 
-    def __getitem__(self, index: int) -> tuple[spconv.SparseConvTensor, torch.Tensor, torch.Tensor]:
+    def __getitem__(self, index: int) -> tuple[spconv.SparseConvTensor, torch.Tensor, torch.Tensor, tuple[int]]:
         """Return a single batch of linear system data.
 
         The tensor format is as required in the `traveller59/spconv` package. The matrices, solutions, and right-hand
         sides are zero-padded to fit the maximum degrees of freedom.
         """
-        batch = dict(features=list(), indices=list(), solution=list(), right_hand_side=list())
-        for batch_index in range(index * self.batch_size, (index + 1) * self.batch_size):
-            indices, values, solutions, right_hand_sides = np.load(self.files[index]).values()
+        batch = dict(features=list(), indices=list(), solutions=list(), right_hand_sides=list())
+        original_sizes = tuple()
+
+        for batch_index in range(self.batch_size):
+            indices, values, solution, right_hand_side = np.load(
+                self.files[index * self.batch_size + batch_index]).values()
+            original_sizes += solution.shape
+            difference = self.dof_max - len(solution)
+
+            # filter lower triangular part because of symmetry
+            (filter, ) = np.where(indices[0] >= indices[1])
+            indices = indices[:, filter]
+            values = values[filter]
+
             batch["features"].append(np.expand_dims(values, axis=-1))
             batch["indices"].append(np.concatenate((np.full((len(values), 1), batch_index), indices.T), axis=1))
-            batch["solution"].append(np.expand_dims(
-                np.pad(solutions, (0, DOF_MAX - len(solutions))),
+            batch["solutions"].append(np.expand_dims(
+                np.pad(solution, (0, difference)),
                 axis=0,
             ))
-            batch["right_hand_side"].append(
-                np.expand_dims(
-                    np.pad(right_hand_sides, (0, DOF_MAX - len(right_hand_sides))),
-                    axis=0,
-                ))
+            batch["right_hand_sides"].append(np.expand_dims(
+                np.pad(right_hand_side, (0, difference)),
+                axis=0,
+            ))
 
         features = torch.from_numpy(np.vstack(batch["features"])).float().to(self.device)
         indices = torch.from_numpy(np.vstack(batch["indices"])).int().to(self.device)
-        matrices = spconv.SparseConvTensor(features, indices, [DOF_MAX, DOF_MAX], self.batch_size)
+        systems_tril = spconv.SparseConvTensor(features, indices, [self.dof_max, self.dof_max], self.batch_size)
 
-        solutions = torch.from_numpy(np.vstack(batch["solution"])).float().to(self.device)
-        right_hand_sides = torch.from_numpy(np.vstack(batch["right_hand_side"])).float().to(self.device)
+        solutions = torch.from_numpy(np.vstack(batch["solutions"])).float().to(self.device)
+        right_hand_sides = torch.from_numpy(np.vstack(batch["right_hand_sides"])).float().to(self.device)
 
-        return matrices, solutions, right_hand_sides
-
-
-if __name__ == "__main__":
-    download_from_kaggle()
+        return systems_tril, solutions, right_hand_sides, original_sizes
