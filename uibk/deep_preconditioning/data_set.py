@@ -1,6 +1,7 @@
 """A collection of PyTorch data sets from sparse symmetric positive-definite problems.
 
 Classes:
+    SludgePatternDataSet: A collection of linear Poisson problems from CFD simulations.
     StAnDataSet: A large collection of solved linear static analysis problems on frame structures.
 """
 
@@ -31,17 +32,17 @@ class SludgePatternDataSet(Dataset):
         Raises:
             An `AssertionError` if `stage` is neither "train" nor "test" or if CUDA is not available.
         """
-        self._files = sorted(list(root.glob("sludge_patterns/*.npz")))
+        self._folders = sorted(list((root / "sludge_patterns").glob("case_*")))
 
         match stage:
             case "train":
-                self.files = self._files[:len(self._files) * 80 // 100]
+                self.folders = self._folders[:len(self._folders) * 80 // 100]
             case "test":
-                self.files = self._files[len(self._files) * 80 // 100:]
+                self.folders = self._folders[len(self._folders) * 80 // 100:]
             case _:
                 raise AssertionError(f"Invalid stage {stage}")
         if shuffle:
-            random.shuffle(self.files)
+            random.shuffle(self.folders)
 
         self.batch_size = batch_size
         self.dof_max = self._compute_max_dof()
@@ -53,8 +54,8 @@ class SludgePatternDataSet(Dataset):
         """Compute the maximum degrees of freedom in the data set."""
         max_dof = 0
 
-        for file in self._files:
-            current = np.load(file)["shape"].max().item()
+        for folder in self._folders:
+            current = np.load(folder / "matrix.npz")["shape"].max().item()
             if current > max_dof:
                 max_dof = current
 
@@ -64,37 +65,59 @@ class SludgePatternDataSet(Dataset):
 
     def __len__(self) -> int:
         """Return the number of batches."""
-        return len(self.files) // self.batch_size
+        return len(self.folders) // self.batch_size
 
-    def __getitem__(self, index: int) -> tuple[spconv.SparseConvTensor, tuple[int]]:
+    def __getitem__(self, index: int) -> tuple[spconv.SparseConvTensor, torch.Tensor, torch.Tensor, tuple[int]]:
         """Return a single batch of linear system data.
 
         The tensor format is as required in the `traveller59/spconv` package. The matrices, solutions, and right-hand
         sides are zero-padded to fit the maximum degrees of freedom.
         """
-        batch = dict(features=list(), indices=list())
+        batch = dict(features=list(), indices=list(), solutions=list(), right_hand_sides=list())
         original_sizes = tuple()
 
         for batch_index in range(self.batch_size):
-            rows, columns, _, original_size, values = np.load(
-                self.files[index * self.batch_size + batch_index]).values()
+            case_folder = self.folders[index * self.batch_size + batch_index]
+
+            rows, columns, _, original_size, values = np.load(case_folder / "matrix.npz").values()
             original_sizes += (original_size[0], )
+            difference = self.dof_max - original_size[0]
 
             # filter lower triangular part because of symmetry
             (filter, ) = np.where(rows >= columns)
             rows = rows[filter]
             columns = columns[filter]
             values = values[filter]
+            # add trivial equations for maximum degrees of freedom
+            rows = np.append(rows, np.arange(original_size[0], self.dof_max))
+            columns = np.append(columns, np.arange(original_size[0], self.dof_max))
+            values = np.append(values, np.ones((difference, )))
+
+            solution = np.loadtxt(case_folder / "solution.csv")
+            right_hand_side = np.loadtxt(case_folder / "right_hand_side.csv")
 
             batch["features"].append(np.expand_dims(values, axis=-1))
             batch["indices"].append(np.column_stack((np.full(len(values), batch_index), rows, columns), ))
+            batch["solutions"].append(
+                np.expand_dims(
+                    np.pad(solution, (0, difference), "constant", constant_values=1),
+                    axis=0,
+                ))
+            batch["right_hand_sides"].append(
+                np.expand_dims(
+                    np.pad(right_hand_side, (0, difference), "constant", constant_values=1),
+                    axis=0,
+                ))
 
         features = torch.from_numpy(np.vstack(batch["features"])).float().to(self.device)
         indices = torch.from_numpy(np.vstack(batch["indices"])).int().to(self.device)
         lower_triangular_systems = spconv.SparseConvTensor(
             features, indices, [self.dof_max, self.dof_max], self.batch_size)
 
-        return lower_triangular_systems, original_sizes
+        solutions = torch.from_numpy(np.vstack(batch["solutions"])).float().to(self.device)
+        right_hand_sides = torch.from_numpy(np.vstack(batch["right_hand_sides"])).float().to(self.device)
+
+        return lower_triangular_systems, solutions, right_hand_sides, original_sizes
 
 
 def download_from_kaggle() -> None:
