@@ -27,4 +27,4 @@ def frobenius_loss(
     interim = sparse_matvec_mul(lower_triangular, solution, transpose=True)
     interim = sparse_matvec_mul(lower_triangular, interim, transpose=False)
 
-    return (interim - right_hand_side).square().sum()
+    return torch.linalg.vector_norm(interim - right_hand_side, ord=2, dim=1).sum()
