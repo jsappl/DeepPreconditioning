@@ -39,6 +39,54 @@ def _train_single_epoch(model: "nn.Module", data_set: "Dataset | Subset", optimi
         loss.backward()
         optimizer.step()
 
+@torch.no_grad()
+def _validate(model: "nn.Module", data_set: "Dataset | Subset") -> tuple[float, ...]:
+    """Test the model on the validation data.
+
+    Args:
+        model: The model to test.
+        data_set: The validation data set.
+
+    Returns:
+        The validation loss and metrics of the preconditioned systems.
+    """
+    model.eval()
+
+    val_losses = list()
+    durations = list()
+    iterations = list()
+
+    for index in range(len(data_set)):
+        systems_tril, _, right_hand_sides, original_sizes = data_set[index]
+        preconditioners_tril = model(systems_tril)
+
+        val_losses.append(inverse_loss(systems_tril, preconditioners_tril).item())
+
+        for batch_index in range(systems_tril.batch_size):
+            original_size = original_sizes[batch_index]
+
+            system = systems_tril.dense()[batch_index, 0, :original_size, :original_size]
+            system += torch.tril(system, -1).transpose(-1, -2)
+            system = system.cpu().numpy()
+
+            right_hand_side = right_hand_sides[batch_index, :original_size].squeeze().cpu().numpy()
+
+            preconditioner = preconditioners_tril.dense()[batch_index, 0, :original_size, :original_size]
+            preconditioner = torch.matmul(preconditioner, preconditioner.transpose(-1, -2))
+            preconditioner = preconditioner.cpu().numpy()
+
+            preconditioner = csr_matrix(preconditioner)
+            duration, n_iterations = benchmark_cg(
+                system,
+                right_hand_side,
+                preconditioner=preconditioner,
+            )
+            durations.append(duration)
+            iterations.append(n_iterations)
+
+    return np.mean(val_losses).item(), np.mean(durations).item(), np.mean(iterations).item()
+
+
 class EarlyStopping():
     """Stop the training when no more significant improvement."""
 
