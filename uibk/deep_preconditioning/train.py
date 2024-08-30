@@ -143,7 +143,7 @@ def main() -> None:
         dir=str(Path("assets/dvclive/")),
         report="html",
         save_dvc_exp=True,
-        dvcyaml=False,
+        dvcyaml=None,
     )
 
     while True:
@@ -161,7 +161,7 @@ def main() -> None:
         if val_loss < best_val_loss:
             best_val_loss = val_loss
 
-        torch.save(model.state_dict(), Path(f"assets/checkpoints/{model.__class__.__name__}.pt"))
+        torch.save(model.state_dict(), Path("assets/checkpoints/best.pt"))
 
         live.next_step()
 
