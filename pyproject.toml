@@ -15,6 +15,7 @@ dependencies = [
     "dvc-webdav>=3.0.0",
     "kaggle>=1.6.14",
     "matplotlib>=3.9.2",
+    "pyamg>=5.2.1",
     "scipy>=1.14.1",
     "spconv-cu120>=2.3.6",
     "torch>=2.3.0",

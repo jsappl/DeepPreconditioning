@@ -5,7 +5,7 @@
 groups = ["default", "notebook"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:6e811af2c662a087d8eecb8c19da018cd56a08f323e3b816d87c689d7e8b4ab7"
+content_hash = "sha256:5e8927de630a648c05d350ad9a04e6ce364537c68d88935c4571f8247100114c"
 
 [[metadata.targets]]
 requires_python = ">=3.11"
@@ -2695,6 +2695,32 @@ groups = ["notebook"]
 files = [
     {file = "pure_eval-0.2.2-py3-none-any.whl", hash = "sha256:01eaab343580944bc56080ebe0a674b39ec44a945e6d09ba7db3cb8cec289350"},
     {file = "pure_eval-0.2.2.tar.gz", hash = "sha256:2b45320af6dfaa1750f543d714b6d1c520a1688dec6fd24d339063ce0aaa9ac3"},
+]
+
+[[package]]
+name = "pyamg"
+version = "5.2.1"
+requires_python = ">=3.9"
+summary = "PyAMG: Algebraic Multigrid Solvers in Python"
+groups = ["default"]
+dependencies = [
+    "numpy",
+    "scipy>=1.11.0",
+]
+files = [
+    {file = "pyamg-5.2.1-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:60d02ce8e1190292cf43710dd45403ba0860255392830140da874492b755a498"},
+    {file = "pyamg-5.2.1-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:75d68fac5a7ddb3fb490efa66a5e47902532770bc357fbf5a5a7be613b8d493d"},
+    {file = "pyamg-5.2.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:679a5904eac3a4880288c8c0e6a29f110a2627ea15a443a4e9d5997c7dc5fab6"},
+    {file = "pyamg-5.2.1-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:91a0f8d5f39debbe62ab191c9354fce6c547bd78955961f88cb7ab2ea7a14dc1"},
+    {file = "pyamg-5.2.1-cp311-cp311-win32.whl", hash = "sha256:0b2762b24ad61d900ac835120158e64ceea6e497a8a3edb69c3b04776ddde329"},
+    {file = "pyamg-5.2.1-cp311-cp311-win_amd64.whl", hash = "sha256:487c41ed3c2987b19771854e84415268033a8c3dba681ecac996ddbf1ce4c3be"},
+    {file = "pyamg-5.2.1-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:30ae9f374c03897cb257b8eabbf8ceb32007e6df1c0a7ab2a84eb1ed0550087d"},
+    {file = "pyamg-5.2.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:5f1645e50ed8d93d73c7546ca6e77c856dc3ccddf93bf9ded3f97654e600ca1b"},
+    {file = "pyamg-5.2.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1894898370f818be7999ed6872391bc7de4f8a2a95027754b67bac638f23a480"},
+    {file = "pyamg-5.2.1-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:1eabc5bd1aa21f0911021d17fdbb03d93216bfefaac0a9af357fed1510dd4f65"},
+    {file = "pyamg-5.2.1-cp312-cp312-win32.whl", hash = "sha256:5ff6202143f0c5fa093b4f99b9de4e6e5195fb7fecaf001a1f6a5a21b1fe329d"},
+    {file = "pyamg-5.2.1-cp312-cp312-win_amd64.whl", hash = "sha256:dac4b0656188cf85e803355aa9065fd2d6d2237fc29bb5e55995331f75e0f616"},
+    {file = "pyamg-5.2.1.tar.gz", hash = "sha256:f449d934224e503401ee72cd2eece1a29d893b7abe35f62a44d52ba831198efa"},
 ]
 
 [[package]]
