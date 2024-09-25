@@ -23,6 +23,8 @@ if TYPE_CHECKING:
     from spconv.pytorch import SparseConvTensor
     from torch.utils.data import Dataset
 
+RESULTS_DIRECTORY: Path = Path("./assets/results/")
+
 
 @dataclass
 class BenchmarkSuite:
@@ -34,15 +36,15 @@ class BenchmarkSuite:
     """
     data_set: "Dataset"
     model: torch.nn.Module
-    technique: tuple[str, ...] = (
+    techniques: tuple[str, ...] = (
         "vanilla",
         "jacobi",
         "incomplete_cholesky",
         "algebraic_multigrid",
         "learned",
     )
-    durations = {name: [] for name in technique}
-    iterations = {name: [] for name in technique}
+    iterations = {name: [] for name in techniques}
+    durations = {name: [] for name in techniques}
     histograms = dict()
 
     def _reconstruct_system(self, system_tril: "SparseConvTensor", original_size: int) -> np.ndarray:
@@ -102,7 +104,7 @@ class BenchmarkSuite:
             matrix = self._reconstruct_system(system_tril, original_size[0])
             right_hand_side = right_hand_side[0, :original_size[0]].squeeze().cpu().numpy()
 
-            for name in self.technique:
+            for name in self.techniques:
                 if name == "learned":
                     continue
 
@@ -131,10 +133,29 @@ class BenchmarkSuite:
             ax.boxplot(
                 [getattr(self, parameter)[name] for name in self.durations.keys()],
                 notch=True,
-                tick_labels=self.technique,
+                tick_labels=self.techniques,
             )
 
             yield parameter, figure
+
+    def dump_csv(self) -> None:
+        """Dump the durations and iterations to a CSV file.
+
+        Keep in mind that it has to be consumed and rendered using LaTeX later on.
+        """
+        RESULTS_DIRECTORY.mkdir(parents=True, exist_ok=True)
+        parameters = ["iterations", "durations"]
+
+        with open(RESULTS_DIRECTORY / "table.csv", "w") as file_io:
+            file_io.write("technique," + ",".join(parameters) + "\n")
+
+            for technique in self.techniques:
+                line = technique
+
+                for parameter in parameters:
+                    line += "," + str(np.mean(getattr(self, parameter)[technique], dtype=float))
+
+                file_io.write(line + "\n")
 
 
 def main():
@@ -161,6 +182,7 @@ def main():
 
     suite = BenchmarkSuite(data_set, model)
     suite.run()
+    suite.dump_csv()
 
     for name, duration in suite.durations.items():
         live.log_metric(f"test/{name}/duration", np.mean(duration, dtype=float))
