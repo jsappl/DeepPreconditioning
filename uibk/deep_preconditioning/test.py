@@ -13,6 +13,7 @@ from dvclive import Live
 from pyamg.aggregation import smoothed_aggregation_solver
 from scipy.sparse import csr_matrix, diags, lil_matrix
 from scipy.sparse.linalg import inv, spilu
+from tqdm import tqdm
 
 from uibk.deep_preconditioning.data_set import SludgePatternDataSet
 from uibk.deep_preconditioning.model import PreconditionerNet
@@ -44,6 +45,7 @@ class BenchmarkSuite:
         "algebraic_multigrid",
         "learned",
     )
+    kappas = {name: [] for name in techniques}
     densities = {name: [] for name in techniques}
     iterations = {name: [] for name in techniques}
     setups = {name: [] for name in techniques}
@@ -106,9 +108,13 @@ class BenchmarkSuite:
         """Compute the sparsity of a matrix."""
         return 100 * matrix.getnnz() / (matrix.shape[0] * matrix.shape[1])
 
+    def _compute_kappa(self, matrix: np.ndarray, preconditioner: "spmatrix") -> float:
+        """Compute the condition number."""
+        return np.linalg.cond(preconditioner @ matrix)
+
     def run(self) -> None:
         """Run the whole benchmark suite."""
-        for index in range(len(self.data_set)):
+        for index in tqdm(range(len(self.data_set))):
             system_tril, _, right_hand_side, original_size = self.data_set[index]
             matrix = self._reconstruct_system(system_tril, original_size[0])
             right_hand_side = right_hand_side[0, :original_size[0]].squeeze().cpu().numpy()
@@ -123,7 +129,9 @@ class BenchmarkSuite:
 
                 density = self._compute_sparsity(preconditioner)
                 duration, iteration, info = benchmark_cg(matrix, right_hand_side, preconditioner)
+                kappa = self._compute_kappa(matrix, preconditioner)
 
+                self.kappas[name].append(kappa)
                 self.densities[name].append(density)
                 self.iterations[name].append(iteration)
                 self.setups[name].append(setup)
@@ -155,7 +163,7 @@ class BenchmarkSuite:
         Keep in mind that it has to be consumed and rendered using LaTeX later on.
         """
         RESULTS_DIRECTORY.mkdir(parents=True, exist_ok=True)
-        parameters = ["densities", "iterations", "setups", "durations", "totals", "successes"]
+        parameters = ["kappas", "densities", "iterations", "setups", "durations", "totals", "successes"]
 
         with open(RESULTS_DIRECTORY / "table.csv", "w") as file_io:
             file_io.write("technique," + ",".join(parameters) + "\n")
