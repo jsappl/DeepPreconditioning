@@ -146,6 +146,9 @@ def main() -> None:
         dvcyaml=None,
     )
 
+    checkpoint_directory = Path("assets/checkpoints")
+    checkpoint_directory.mkdir(parents=True, exist_ok=True)
+
     while True:
         train_loss = _train_single_epoch(model, train_data, optimizer)
         live.log_metric("train/loss/log_inverse", np.log(train_loss))
@@ -161,7 +164,7 @@ def main() -> None:
         if val_loss < best_val_loss:
             best_val_loss = val_loss
 
-        torch.save(model.state_dict(), Path("assets/checkpoints/best.pt"))
+        torch.save(model.state_dict(), checkpoint_directory / "best.pt")
 
         live.next_step()
 
