@@ -1,5 +1,6 @@
 """Test the performance of convetional and our preconditioner."""
 
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Generator
@@ -19,7 +20,7 @@ from uibk.deep_preconditioning.utils import benchmark_cg
 
 if TYPE_CHECKING:
     from matplotlib.figure import Figure
-    from scipy.sparse import csc_matrix
+    from scipy.sparse import csc_matrix, spmatrix
     from spconv.pytorch import SparseConvTensor
     from torch.utils.data import Dataset
 
@@ -43,8 +44,12 @@ class BenchmarkSuite:
         "algebraic_multigrid",
         "learned",
     )
+    densities = {name: [] for name in techniques}
     iterations = {name: [] for name in techniques}
+    setups = {name: [] for name in techniques}
     durations = {name: [] for name in techniques}
+    totals = {name: [] for name in techniques}
+    successes = {name: [] for name in techniques}
     histograms = dict()
 
     def _reconstruct_system(self, system_tril: "SparseConvTensor", original_size: int) -> np.ndarray:
@@ -89,13 +94,17 @@ class BenchmarkSuite:
         preconditioner = smoothed_aggregation_solver(matrix).aspreconditioner(cycle="V")
         return csr_matrix(preconditioner.matmat(np.eye(matrix.shape[0], dtype=np.float32)))
 
-    def _construct_learned(self, system_tril: "SparseConvTensor", original_size: int):
+    def _construct_learned(self, system_tril: "SparseConvTensor", original_size: int) -> csr_matrix:
         """Construct our preconditioner."""
         preconditioners_tril = self.model(system_tril)
         preconditioner = preconditioners_tril.dense()[0, 0, :original_size, :original_size]
         preconditioner = torch.matmul(preconditioner, preconditioner.transpose(-1, -2))
         preconditioner = preconditioner.detach().cpu().numpy()
         return csr_matrix(preconditioner)
+
+    def _compute_sparsity(self, matrix: "spmatrix") -> float:
+        """Compute the sparsity of a matrix."""
+        return 100 * matrix.getnnz() / (matrix.shape[0] * matrix.shape[1])
 
     def run(self) -> None:
         """Run the whole benchmark suite."""
@@ -105,20 +114,22 @@ class BenchmarkSuite:
             right_hand_side = right_hand_side[0, :original_size[0]].squeeze().cpu().numpy()
 
             for name in self.techniques:
+                start_time = time.monotonic_ns()
                 if name == "learned":
-                    continue
+                    preconditioner = self._construct_learned(system_tril, original_size[0])
+                else:
+                    preconditioner = getattr(self, f"_construct_{name}")(matrix)
+                setup = (time.monotonic_ns() - start_time) / 1e9  # convert to seconds
 
-                preconditioner = getattr(self, f"_construct_{name}")(matrix)
-                duration, iteration = benchmark_cg(matrix, right_hand_side, preconditioner)
+                density = self._compute_sparsity(preconditioner)
+                duration, iteration, info = benchmark_cg(matrix, right_hand_side, preconditioner)
 
-                self.durations[name].append(duration)
+                self.densities[name].append(density)
                 self.iterations[name].append(iteration)
-
-            preconditioner = self._construct_learned(system_tril, original_size[0])
-            duration, iteration = benchmark_cg(matrix, right_hand_side, preconditioner)
-
-            self.durations["learned"].append(duration)
-            self.iterations["learned"].append(iteration)
+                self.setups[name].append(setup)
+                self.durations[name].append(duration)
+                self.totals[name].append(setup + duration)
+                self.successes[name].append(100 * (1 - info))
 
     def plot_histograms(self) -> Generator[tuple[str, "Figure"], None, None]:
         """Plot histograms for the durations and iterations."""
@@ -144,7 +155,7 @@ class BenchmarkSuite:
         Keep in mind that it has to be consumed and rendered using LaTeX later on.
         """
         RESULTS_DIRECTORY.mkdir(parents=True, exist_ok=True)
-        parameters = ["iterations", "durations"]
+        parameters = ["densities", "iterations", "setups", "durations", "totals", "successes"]
 
         with open(RESULTS_DIRECTORY / "table.csv", "w") as file_io:
             file_io.write("technique," + ",".join(parameters) + "\n")
