@@ -1,4 +1,6 @@
-channels: [1, 256, 512, 256, 1] # must be odd due to padding
+number_samples: 1000
+resolution: 128
+channels: [1, 128, 128, 128, 1] # must be odd due to padding
 batch_size: 4
 learning_rate: 0.001
-patience: 32
+patience: 16

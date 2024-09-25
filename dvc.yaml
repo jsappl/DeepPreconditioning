@@ -1,12 +1,33 @@
 stages:
-  download:
-    cmd: python ./uibk/deep_preconditioning/data_set.py
-    outs:
-      - ./assets/data/raw/stand-small-problems.zip:
-          cache: false
-    desc: Download the raw zipped data set from Kaggle
-  unzip:
-    cmd: unzip ./assets/data/raw/stand-small-problems.zip -d ./assets/data/raw/
+  generate:
+    cmd: python ./uibk/deep_preconditioning/generate_data.py
     deps:
-      - ./assets/data/raw/stand-small-problems.zip
-    desc: Unzip the raw data set
+      - ./uibk/deep_preconditioning/generate_data.py
+    outs:
+      - ./assets/data/raw/sludge_patterns/:
+          cache: false
+    params:
+      - number_samples
+      - resolution
+    desc: Generate linear systems from synthetic sludge patterns.
+
+  train:
+    cmd: python ./uibk/deep_preconditioning/train.py
+    deps:
+      - ./uibk/deep_preconditioning/train.py
+      - ./assets/data/raw/sludge_patterns/
+    outs:
+      - ./assets/checkpoints/
+      - ./assets/dvclive/
+    params:
+      - channels
+      - batch_size
+      - learning_rate
+      - patience
+    desc: Train a deep preconditioner on synthetic sludge patterns.
+
+metrics:
+  - ./assets/dvclive/metrics.json
+
+params:
+  - params.yaml
