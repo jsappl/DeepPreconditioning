@@ -85,7 +85,7 @@ def _validate(model: "nn.Module", data_set: "Dataset | Subset") -> tuple[float, 
             preconditioner = preconditioner.cpu().numpy()
 
             preconditioner = csr_matrix(preconditioner)
-            duration, n_iterations = benchmark_cg(
+            duration, n_iterations, _ = benchmark_cg(
                 system,
                 right_hand_side,
                 preconditioner=preconditioner,

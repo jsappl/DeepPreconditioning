@@ -43,7 +43,7 @@ def sparse_matvec_mul(spconv_batch: "SparseConvTensor", vector_batch: torch.Tens
 
 
 def benchmark_cg(matrix: "ndarray", right_hand_side: "ndarray",
-                 preconditioner: "ndarray | csr_matrix | None" = None) -> tuple[float, int]:
+                 preconditioner: "ndarray | csr_matrix | None" = None) -> tuple[float, int, int]:
     """Benchmark the (preconditioned) conjugate gradient method.
 
     Args:
@@ -52,7 +52,7 @@ def benchmark_cg(matrix: "ndarray", right_hand_side: "ndarray",
         preconditioner: The preconditioner for the conjugate gradient method.
 
     Returns:
-        The duration and number of iterations until convergence.
+        The duration, number of iterations, and a boolean for convergence.
     """
     iterations = 0
 
@@ -61,7 +61,7 @@ def benchmark_cg(matrix: "ndarray", right_hand_side: "ndarray",
         iterations += 1
 
     start_time = time.monotonic_ns()
-    cg(
+    _, info = cg(
         matrix,
         right_hand_side,
         maxiter=512,
@@ -70,4 +70,4 @@ def benchmark_cg(matrix: "ndarray", right_hand_side: "ndarray",
     )
     duration = (time.monotonic_ns() - start_time) / 1e9  # convert to seconds
 
-    return duration, iterations
+    return duration, iterations, info
