@@ -9,7 +9,6 @@ import dvc.api
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from dvclive import Live
 from pyamg.aggregation import smoothed_aggregation_solver
 from scipy.sparse import csr_matrix, diags, lil_matrix
 from scipy.sparse.linalg import inv, spilu
@@ -191,27 +190,9 @@ def main():
     model.load_state_dict(torch.load(Path("./assets/checkpoints/best.pt")))
     model = model.to(device)
 
-    live = Live(  # init logger
-        dir=str(Path("assets/dvclive/")),
-        resume=True,
-        report="html",
-        save_dvc_exp=False,
-        dvcyaml=None,
-    )
-
     suite = BenchmarkSuite(data_set, model)
     suite.run()
     suite.dump_csv()
-
-    for name, duration in suite.durations.items():
-        live.log_metric(f"test/{name}/duration", np.mean(duration, dtype=float))
-    for name, iteration in suite.iterations.items():
-        live.log_metric(f"test/{name}/iterations", np.mean(iteration, dtype=float))
-
-    for parameter, figure in suite.plot_histograms():
-        live.log_image(f"test/histogram/{parameter}.png", figure)
-
-    live.end()
 
 
 if __name__ == "__main__":
