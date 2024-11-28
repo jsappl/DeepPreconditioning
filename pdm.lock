@@ -3,7 +3,7 @@
 
 [metadata]
 groups = ["default", "notebook"]
-strategy = ["cross_platform", "inherit_metadata"]
+strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
 content_hash = "sha256:5e8927de630a648c05d350ad9a04e6ce364537c68d88935c4571f8247100114c"
 
