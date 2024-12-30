@@ -12,6 +12,7 @@ import kaggle
 import numpy as np
 import spconv.pytorch as spconv
 import torch
+from scipy.sparse import coo_matrix, load_npz, save_npz
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
@@ -208,15 +209,19 @@ class StAnDataSet(Dataset):
 class RandomSPDDataSet(Dataset):
     """Random symmetric positive-definite matrices data set."""
 
-    def __init__(self, dof: int, num_nonzeros: int, batch_size: int, length: int = 1000) -> None:
+    def __init__(
+            self, stage: str, dof: int, num_nonzeros: int, batch_size: int, length: int = 1000,
+            shuffle: bool = True) -> None:
         """Initialize the data set.
 
         Args:
+            stage: One of "train" or "test" in 80/20 split.
             dof: Degrees of freedom where (dof, dof) is the size of each matrix.
             num_nonzeros: Total number of non-zero entries in each matrix. Must be >= dof to cover diagonal and
                 num_nonzeros - dof must be even.
             batch_size: Number of samples per batch.
             length: Number of total samples.
+            shuffle: Whether to shuffle the data.
         """
         assert torch.cuda.is_available(), "CUDA is mandatory but not available"
         self.device = torch.device("cuda")
@@ -229,37 +234,63 @@ class RandomSPDDataSet(Dataset):
         self.batch_size = batch_size
         self.length = length
 
-        self.indices = list(range(self.length))
         self.save_dir = ROOT / "random_spd"
-        self.save_dir.mkdir(parents=True, exist_ok=True)
 
-        self._generate_data_set()
+        if not self.save_dir.exists():
+            self.save_dir.mkdir(parents=True)
+            self._generate_data_set()
+
+        match stage:
+            case "train":
+                self.files = list(self.save_dir.glob("*.npz"))[:length * 80 // 100]
+            case "test":
+                self.files = list(self.save_dir.glob("*.npz"))[length * 80 // 100:]
+            case _:
+                raise AssertionError(f"Invalid stage {stage}")
+        if shuffle:
+            random.shuffle(self.files)
 
     def __len__(self) -> int:
         """Return the number of batches."""
-        return self.length // self.batch_size
+        return len(self.files) // self.batch_size
 
-    def __getitem__(self, index: int) -> spconv.SparseConvTensor:
+    def __getitem__(self, index: int) -> tuple[spconv.SparseConvTensor, torch.Tensor, torch.Tensor, tuple[int]]:
         """Return a single batch of random SPD matrices.
 
         The tensor format is as required in the `traveller59/spconv` package.
         """
-        batch = {"features": [], "indices": []}
+        batch = dict(features=list(), indices=list(), solutions=list(), right_hand_sides=list())
+        original_sizes = tuple()
 
         for batch_index in range(self.batch_size):
-            index = self.indices[index * self.batch_size + batch_index]
-            matrix = np.load(self.save_dir / f"{index:04}.npz")["M"]
+            file = self.files[index * self.batch_size + batch_index]
 
-            rows, cols = np.where(matrix != 0)
-            values = matrix[rows, cols]
+            rows, columns, _, _, values = np.load(file).values()
+            matrix = load_npz(file)
+            original_sizes += (self.dof, )
+
+            # filter lower triangular part because of symmetry
+            (filter, ) = np.where(rows >= columns)
+            rows = rows[filter]
+            columns = columns[filter]
+            values = values[filter]
+
+            solution = np.ones((self.dof, ))
+            right_hand_side = matrix @ solution
 
             batch["features"].append(np.expand_dims(values, axis=-1))
-            batch["indices"].append(np.column_stack((np.full(len(values), batch_index), rows, cols)))
+            batch["indices"].append(np.column_stack((np.full(len(values), batch_index), rows, columns), ))
+            batch["solutions"].append(np.expand_dims(solution, axis=0))
+            batch["right_hand_sides"].append(np.expand_dims(right_hand_side, axis=0))
 
         features = torch.from_numpy(np.vstack(batch["features"])).float().to(self.device)
         indices = torch.from_numpy(np.vstack(batch["indices"])).int().to(self.device)
+        lower_triangular_systems = spconv.SparseConvTensor(features, indices, [self.dof, self.dof], self.batch_size)
 
-        return spconv.SparseConvTensor(features, indices, [self.dof, self.dof], self.batch_size)
+        solutions = torch.from_numpy(np.vstack(batch["solutions"])).float().to(self.device)
+        right_hand_sides = torch.from_numpy(np.vstack(batch["right_hand_sides"])).float().to(self.device)
+
+        return lower_triangular_systems, solutions, right_hand_sides, original_sizes
 
     def _generate_random_spd_matrix(self) -> np.ndarray:
         """Generate a single random SPD matrix with a given non-zero pattern."""
@@ -277,11 +308,7 @@ class RandomSPDDataSet(Dataset):
 
         matrix = np.zeros((self.dof, self.dof), dtype=np.float32)
 
-        # Fill diagonal
-        for row_index in range(self.dof):
-            matrix[row_index, row_index] = np.random.uniform(0.1, 1.0)
-
-            # Fill off-diagonal entries symmetrically
+        # Fill off-diagonal entries symmetrically
         for (row_index, col_index) in chosen_pairs:
             value = np.random.randn() * 0.1
             matrix[row_index, col_index] = value
@@ -289,13 +316,13 @@ class RandomSPDDataSet(Dataset):
 
         # Make M diagonally dominant to ensure SPD
         for row_index in range(self.dof):
-            off_diag_sum = np.sum(np.abs(matrix[row_index, :])) - abs(matrix[row_index, row_index])
+            off_diag_sum = np.sum(np.abs(matrix[row_index, :]))
             matrix[row_index, row_index] += off_diag_sum + 1e-1
 
         return matrix
 
     def _generate_data_set(self) -> None:
         """Generate the data set."""
-        for index in tqdm(iterable=self.indices, desc="Generating random SPD matrices", unit="matrix"):
-            matrix = self._generate_random_spd_matrix()
-            np.savez(self.save_dir / f"{index:04}.npz", M=matrix)
+        for index in tqdm(iterable=list(range(self.length)), desc="Generating random SPD matrices", unit="matrices"):
+            matrix = coo_matrix(self._generate_random_spd_matrix())
+            save_npz(self.save_dir / f"{index:04}.npz", matrix, compressed=False)
