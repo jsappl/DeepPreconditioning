@@ -1,5 +1,6 @@
 """Test the performance of convetional and our preconditioner."""
 
+import csv
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -8,6 +9,7 @@ from typing import TYPE_CHECKING, Generator
 import dvc.api
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy
 import torch
 from pyamg.aggregation import smoothed_aggregation_solver
 from scipy.sparse import csr_matrix, diags, lil_matrix
@@ -111,12 +113,19 @@ class BenchmarkSuite:
         """Compute the condition number."""
         return np.linalg.cond(preconditioner @ matrix)
 
+    def _compute_eigenvalues(self, matrix: np.ndarray, preconditioner: np.ndarray) -> list:
+        """Compute the eigenvalues of a matrix."""
+        return scipy.linalg.svdvals(preconditioner @ matrix).tolist()
+
     def run(self) -> None:
         """Run the whole benchmark suite."""
         for index in tqdm(range(len(self.data_set))):
             system_tril, _, right_hand_side, original_size = self.data_set[index]
             matrix = self._reconstruct_system(system_tril, original_size[0])
             right_hand_side = right_hand_side[0, :original_size[0]].squeeze().cpu().numpy()
+
+            if index == 0:
+                eigenvalues = dict(vanilla=self._compute_eigenvalues(matrix, np.eye(matrix.shape[0])))
 
             for name in self.techniques:
                 start_time = time.monotonic_ns()
@@ -129,6 +138,8 @@ class BenchmarkSuite:
                 density = self._compute_sparsity(preconditioner)
                 duration, iteration, info = benchmark_cg(matrix, right_hand_side, preconditioner)
                 kappa = self._compute_kappa(matrix, preconditioner)
+                if index == 0:
+                    eigenvalues[name] = self._compute_eigenvalues(matrix, preconditioner)
 
                 self.kappas[name].append(kappa)
                 self.densities[name].append(density)
@@ -137,6 +148,12 @@ class BenchmarkSuite:
                 self.durations[name].append(duration)
                 self.totals[name].append(setup + duration)
                 self.successes[name].append(100 * (1 - info))
+
+            if index == 0:
+                with open(RESULTS_DIRECTORY / "eigenvalues.csv", "w") as file_io:
+                    writer = csv.writer(file_io)
+                    writer.writerow(eigenvalues.keys())
+                    writer.writerows(zip(*eigenvalues.values(), strict=True))
 
     def plot_histograms(self) -> Generator[tuple[str, "Figure"], None, None]:
         """Plot histograms for the durations and iterations."""
