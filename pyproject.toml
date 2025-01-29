@@ -3,59 +3,56 @@ name = "uibk.deep-preconditioning"
 version = "0.1.0"
 description = "Design preconditioners with a CNN to accelerate the conjugate gradient method."
 readme = "README.md"
-requires-python = ">=3.11"
-license = {text = "MIT"}
+requires-python = ">=3.12"
+license = { text = "MIT" }
 authors = [
-    {name = "Viktor Daropoulos", email = "Viktor.Daropoulos@student.uibk.ac.at"},
-    {name = "Johannes Sappl", email = "johannes.sappl@uibk.ac.at"},
+  { name = "Viktor Daropoulos", email = "Viktor.Daropoulos@student.uibk.ac.at" },
+  { name = "Johannes Sappl", email = "johannes.sappl@student.uibk.ac.at" },
 ]
 dependencies = [
-    "dvc>=3.50.2",
-    "dvclive>=3.46.0",
-    "dvc-webdav>=3.0.0",
-    "kaggle>=1.6.14",
-    "matplotlib>=3.9.2",
-    "pyamg>=5.2.1",
-    "scipy>=1.14.1",
-    "spconv-cu120>=2.3.6",
-    "torch>=2.3.0",
+  "dvc>=3.50.2",
+  "dvclive>=3.46.0",
+  "dvc-webdav>=3.0.0",
+  "kaggle>=1.6.14",
+  "matplotlib>=3.9.2",
+  "pyamg>=5.2.1",
+  "scipy>=1.14.1",
+  "spconv-cu124>=2.3.8",
+  "torch>=2.3.0",
 ]
 
 [project.urls]
 Repository = "https://github.com/jsappl/DeepPreconditioning"
 
 [build-system]
-requires = ["pdm-backend"]
-build-backend = "pdm.backend"
-
-[tool.pdm]
-distribution = true
-
-[tool.pdm.dev-dependencies]
-notebook = [
-    "jupyter>=1.0.0",
-]
+requires = ["flit_core>=3.4"]
+build-backend = "flit_core.buildapi"
 
 [tool.ruff]
-extend-exclude = ["__init__.py"]
-ignore = [
-    # Google docstring convention
-    "D203", "D204", "D213", "D215", "D400", "D404", "D406", "D407", "D408", "D409", "D413",
-]
+exclude = ["__init__.py"]
+fix = true
 line-length = 120
-select = ["ARG", "B", "D", "E", "F", "I", "N", "W"]
-target-version = "py311"
+target-version = "py312"
 
-[tool.ruff.format]
-exclude = ["*"]
+[tool.ruff.lint]
+select = [
+  "ARG", # flake8-unused-arguments
+  "B",   # flake8-bugbear
+  "D",   # pydocstyle
+  "E",   # pycodestyle Error
+  "ERA", # eradicate
+  "F",   # Pyflakes
+  "I",   # isort
+  "N",   # pep8-naming
+  "NPY", # NumPy-specific rules
+  "PD",  # pandas-vet
+  "PT",  # flake8-pytest-style
+  "PTH", # flake8-use-pathlib
+  "Q",   # flake8-quotes
+  "RET", # flake8-return
+  "TD",  # flake8-todos
+  "W",   # pycodestyle Warning
+]
 
-[tool.ruff.pydocstyle]
+[tool.ruff.lint.pydocstyle]
 convention = "google"
-
-[tool.yapf]
-based_on_style = "facebook"
-dedent_closing_brackets = false
-split_before_first_argument = true
-column_limit = 120
-blank_line_before_nested_class_or_def = true
-split_before_named_assigns = false

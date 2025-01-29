@@ -4,8 +4,8 @@
 
 Design preconditioners with a CNN to accelerate the conjugate gradient method.
 
-[![python](https://img.shields.io/badge/python-%3E%3D3.11-blue?logo=python)]()
-[![pdm-managed](https://img.shields.io/endpoint?url=https%3A%2F%2Fcdn.jsdelivr.net%2Fgh%2Fpdm-project%2F.github%2Fbadge.json)](https://pdm-project.org)
+[![python](https://img.shields.io/badge/python-%3E%3D3.12-blue?logo=python)]()
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 </div>
@@ -14,12 +14,12 @@ Design preconditioners with a CNN to accelerate the conjugate gradient method.
 
 This has been tested with
 
-- Debian 10.2.1-6 (GNU/Linux 5.10.0-28-amd64 x86_64)
+- Debian 10.2.1-6 (GNU/Linux 6.1.0-28-amd64 x86_64)
 - Intel(R) Core(TM) i9-10900KF CPU @ 3.70GHz
 - NVIDIA GeForce RTX 3070
-- NVIDIA Driver Version 550.54.15
+- NVIDIA Driver Version 550.54.14
 - CUDA Version 12.4
-- Python 3.11.9
+- Python 3.12.8
 
 Clone this repository and `cd` into the project root.
 
