@@ -60,7 +60,7 @@ def benchmark_cg(matrix: "ndarray", right_hand_side: "ndarray",
         nonlocal iterations
         iterations += 1
 
-    start_time = time.monotonic_ns()
+    start_time = time.perf_counter()
     _, info = cg(
         matrix,
         right_hand_side,
@@ -68,6 +68,7 @@ def benchmark_cg(matrix: "ndarray", right_hand_side: "ndarray",
         M=preconditioner,
         callback=_callback,
     )
-    duration = (time.monotonic_ns() - start_time) / 1e9  # convert to seconds
+    stop_time = time.perf_counter()
+    duration = stop_time - start_time
 
     return duration, iterations, info
