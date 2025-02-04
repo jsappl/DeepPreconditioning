@@ -55,6 +55,8 @@ class BenchmarkSuite:
     successes = {name: [] for name in techniques}
     histograms = dict()
 
+    RESULTS_DIRECTORY.mkdir(parents=True, exist_ok=True)
+
     def _reconstruct_system(self, system_tril: "SparseConvTensor", original_size: int) -> np.ndarray:
         """Reconstruct the linear system from the sparse tensor."""
         assert system_tril.batch_size == 1, "Set batch size to one for testing"
@@ -128,12 +130,13 @@ class BenchmarkSuite:
                 eigenvalues = dict(vanilla=self._compute_eigenvalues(matrix, np.eye(matrix.shape[0])))
 
             for name in self.techniques:
-                start_time = time.monotonic_ns()
+                start_time = time.perf_counter()
                 if name == "learned":
                     preconditioner = self._construct_learned(system_tril, original_size[0])
                 else:
                     preconditioner = getattr(self, f"_construct_{name}")(matrix)
-                setup = (time.monotonic_ns() - start_time) / 1e9  # convert to seconds
+                stop_time = time.perf_counter()
+                setup = stop_time - start_time
 
                 density = self._compute_sparsity(preconditioner)
                 duration, iteration, info = benchmark_cg(matrix, right_hand_side, preconditioner)
@@ -178,7 +181,6 @@ class BenchmarkSuite:
 
         Keep in mind that it has to be consumed and rendered using LaTeX later on.
         """
-        RESULTS_DIRECTORY.mkdir(parents=True, exist_ok=True)
         parameters = ["kappas", "densities", "iterations", "setups", "durations", "totals", "successes"]
 
         with open(RESULTS_DIRECTORY / "table.csv", "w") as file_io:
@@ -190,6 +192,13 @@ class BenchmarkSuite:
                 for parameter in parameters:
                     line += "," + str(np.mean(getattr(self, parameter)[technique], dtype=float))
 
+                file_io.write(line + "\n")
+
+        with (RESULTS_DIRECTORY / "totals.csv").open(mode="w") as file_io:
+            file_io.write(",".join(self.techniques) + "\n")
+
+            for index in range(len(self.totals["vanilla"])):
+                line = ",".join([str(self.totals[technique][index]) for technique in self.techniques])
                 file_io.write(line + "\n")
 
 
