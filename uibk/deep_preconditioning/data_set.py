@@ -3,6 +3,7 @@
 Classes:
     SludgePatternDataSet: A collection of linear Poisson problems from CFD simulations.
     StAnDataSet: A large collection of solved linear static analysis problems on frame structures.
+    RandomSPDDataSet: Random symmetric positive-definite matrices data set.
 """
 
 import random
@@ -210,27 +211,25 @@ class RandomSPDDataSet(Dataset):
     """Random symmetric positive-definite matrices data set."""
 
     def __init__(
-            self, stage: str, dof: int, num_nonzeros: int, batch_size: int, length: int = 1000,
+            self, stage: str, dof: int, batch_size: int, sparsity: float = 0.99, length: int = 1000,
             shuffle: bool = True) -> None:
         """Initialize the data set.
 
         Args:
             stage: One of "train" or "test" in 80/20 split.
             dof: Degrees of freedom where (dof, dof) is the size of each matrix.
-            num_nonzeros: Total number of non-zero entries in each matrix. Must be >= dof to cover diagonal and
-                num_nonzeros - dof must be even.
             batch_size: Number of samples per batch.
+            sparsity: Percentage in (0, 1] indicating how many off-diagonal elements are zero.
             length: Number of total samples.
             shuffle: Whether to shuffle the data.
         """
         assert torch.cuda.is_available(), "CUDA is mandatory but not available"
         self.device = torch.device("cuda")
 
-        assert num_nonzeros >= dof, f"`num_nonzeros` must be at least `dof` {dof} for diagonal coverage."
-        assert (num_nonzeros - dof) % 2 == 0, "`num_nonzeros - dof` must be even to form symmetric pairs."
+        assert 0 < sparsity <= 1, f"`sparsity` must be in (0, 1] but got {sparsity}"
 
         self.dof = dof
-        self.num_nonzeros = num_nonzeros
+        self.sparsity = sparsity
         self.batch_size = batch_size
         self.length = length
 
@@ -293,33 +292,25 @@ class RandomSPDDataSet(Dataset):
         return lower_triangular_systems, solutions, right_hand_sides, original_sizes
 
     def _generate_random_spd_matrix(self) -> np.ndarray:
-        """Generate a single random SPD matrix with a given non-zero pattern."""
-        # Number of off-diagonal pairs
-        off_diag_pairs = (self.num_nonzeros - self.dof) // 2
+        """Generate a single random SPD matrix with a given non-zero pattern.
 
-        # Pick off-diagonal pairs
-        chosen_pairs = set()
-        while len(chosen_pairs) < off_diag_pairs:
-            row_index = np.random.randint(0, self.dof)
-            col_index = np.random.randint(0, self.dof)
+        For this synthetic data set, see also:
 
-            if row_index < col_index:
-                chosen_pairs.add((row_index, col_index))
+        HÄUSNER, Paul; ÖKTEM, Ozan; SJÖLUND, Jens. Neural incomplete factorization: learning preconditioners for the
+        conjugate gradient method. arXiv preprint arXiv:2305.16368, 2023.
 
-        matrix = np.zeros((self.dof, self.dof), dtype=np.float32)
+        https://arxiv.org/pdf/2305.16368
+        """
+        row_indices, col_indices = np.tril_indices(n=self.dof, k=-1)
+        sample_indices = random.sample(range(len(row_indices)), k=int((1 - self.sparsity) * len(row_indices)))
 
-        # Fill off-diagonal entries symmetrically
-        for (row_index, col_index) in chosen_pairs:
-            value = np.random.randn() * 0.1
-            matrix[row_index, col_index] = value
-            matrix[col_index, row_index] = value
+        interim = np.zeros((self.dof, self.dof), dtype=np.float32)
 
-        # Make M diagonally dominant to ensure SPD
-        for row_index in range(self.dof):
-            off_diag_sum = np.sum(np.abs(matrix[row_index, :]))
-            matrix[row_index, row_index] += off_diag_sum + 1e-1
+        for sample_index in sample_indices:
+            interim[row_indices[sample_index], col_indices[sample_index]] = np.random.randn()
 
-        return matrix
+        alpha = 1e-3
+        return interim @ interim.T + alpha * np.eye(self.dof)
 
     def _generate_data_set(self) -> None:
         """Generate the data set."""
