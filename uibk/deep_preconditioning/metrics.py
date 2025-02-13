@@ -11,7 +11,8 @@ if TYPE_CHECKING:
 
 
 def frobenius_loss(
-        lower_triangular: "SparseConvTensor", solution: torch.Tensor, right_hand_side: torch.Tensor) -> torch.Tensor:
+    lower_triangular: "SparseConvTensor", solution: torch.Tensor, right_hand_side: torch.Tensor
+) -> torch.Tensor:
     """Compute the Frobenius norm of the error.
 
     See also <https://arxiv.org/pdf/2305.16432>, equation (11).
@@ -41,15 +42,16 @@ def inverse_loss(systems_tril: "SparseConvTensor", preconditioners_tril: "Sparse
         The inverse loss on the batch.
     """
     preconditioners = preconditioners_tril.dense()[:, 0]
-    preconditioners = torch.matmul(preconditioners.transpose(-1, -2), preconditioners)
+    preconditioners = torch.matmul(preconditioners, preconditioners.transpose(-1, -2))
 
     systems = systems_tril.dense()[:, 0]
     systems += torch.tril(systems, -1).transpose(-1, -2)
 
     preconditioned_systems = torch.matmul(preconditioners, systems)
 
-    identity = torch.eye(systems.shape[1]).unsqueeze(0).expand((systems.shape[0], -1, -1)).to(
-        preconditioned_systems.device)
+    identity = (
+        torch.eye(systems.shape[1]).unsqueeze(0).expand((systems.shape[0], -1, -1)).to(preconditioned_systems.device)
+    )
     return torch.linalg.matrix_norm(preconditioned_systems - identity).mean()
 
 
@@ -64,7 +66,7 @@ def condition_loss(systems_tril: "SparseConvTensor", preconditioners_tril: "Spar
         The average condition number of the batch.
     """
     preconditioners = preconditioners_tril.dense()[:, 0]
-    preconditioners = torch.matmul(preconditioners.transpose(-1, -2), preconditioners)
+    preconditioners = torch.matmul(preconditioners, preconditioners.transpose(-1, -2))
 
     systems = systems_tril.dense()[:, 0]
     systems += torch.tril(systems, -1).transpose(-1, -2)
