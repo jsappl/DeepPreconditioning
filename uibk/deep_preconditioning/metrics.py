@@ -55,6 +55,28 @@ def inverse_loss(systems_tril: "SparseConvTensor", preconditioners_tril: "Sparse
     return torch.linalg.matrix_norm(preconditioned_systems - identity).mean()
 
 
+def hutchinson_trace(systems_tril: "SparseConvTensor", preconditioners_tril: "SparseConvTensor") -> torch.Tensor:
+    """Compute the trace estimate of the preconditioned system.
+
+    Args:
+        systems_tril: Lower triangular matrices as `spconv` tensors.
+        preconditioners_tril: Lower triangular matrices as `spconv` tensors.
+
+    Returns:
+        The trace estimate on the batch.
+    """
+    preconditioners = preconditioners_tril.dense()[:, 0]
+
+    systems = systems_tril.dense()[:, 0]
+    systems += torch.tril(systems, -1).transpose(-1, -2)
+
+    vector = torch.randn(systems.shape[:2], device=systems.device).unsqueeze(-1)
+    interim = torch.bmm(preconditioners, torch.bmm(preconditioners.transpose(-1, -2), vector))
+    interim -= torch.bmm(systems, vector)
+
+    return torch.linalg.vector_norm(interim.squeeze(), ord=2, dim=1).mean()
+
+
 def condition_loss(systems_tril: "SparseConvTensor", preconditioners_tril: "SparseConvTensor") -> torch.Tensor:
     """Compute the condition number loss.
 
