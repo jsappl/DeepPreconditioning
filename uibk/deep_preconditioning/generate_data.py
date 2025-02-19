@@ -1,16 +1,18 @@
 """Generate linear systems from OpenFOAM based on different sludge patterns."""
 
-import shutil
 import subprocess
 from pathlib import Path
 
 import dvc.api
 import numpy as np
+import scipy
 import triangle as tr
 from scipy.sparse import coo_matrix, save_npz
 from stl import mesh
 
 ROOT: Path = Path(__file__).parents[2]
+
+rng = np.random.default_rng(seed=69420)
 
 
 def _sludge_pattern(resolution: int) -> None:
@@ -22,13 +24,13 @@ def _sludge_pattern(resolution: int) -> None:
         resolution: The resolution of the OpenFOAM mesh.
     """
     positions_x = np.linspace(1, 25, num=resolution)
-    positions_y = .0625 * positions_x - 6.0625
-    positions_y[1:-1] += np.random.normal(loc=.25, scale=.1, size=resolution - 2)
+    positions_y = 0.0625 * positions_x - 6.0625
+    positions_y[1:-1] += rng.normal(loc=0.25, scale=0.1, size=resolution - 2)
 
     vertices = np.zeros((2 * resolution, 3))
     vertices[:, 0] = np.concatenate((positions_x, positions_x[::-1]))
     vertices[:, 1] = np.concatenate((positions_y, positions_y[::-1]))
-    vertices[resolution:, 2] = resolution * [-.5]
+    vertices[resolution:, 2] = resolution * [-0.5]
 
     vertice_ids = np.array(range(2 * resolution))
     triangles = tr.triangulate(
@@ -36,7 +38,7 @@ def _sludge_pattern(resolution: int) -> None:
             vertices=vertices[:, [0, 2]],
             segments=np.stack((vertice_ids, (vertice_ids + 1) % len(vertice_ids))).T,
         ),
-        "pq",
+        "p",
     )
     faces = triangles["triangles"]
 
@@ -71,7 +73,7 @@ def _build_matrix(csv_file: Path) -> coo_matrix:
     n_rows = int(max(row)) + 1
     matrix = coo_matrix((val, (row, col)), shape=(n_rows, n_rows))
 
-    assert ((matrix.transpose() != matrix).nnz == 0), "Generated matrix is non-symmetric matrix"
+    assert (matrix.transpose() != matrix).nnz == 0, "Generated matrix is non-symmetric matrix"
 
     eigenvalues = np.linalg.eigvals(matrix.toarray())
     assert np.all(eigenvalues > 0), "Generated matrix is not positive definite"
@@ -80,9 +82,11 @@ def _build_matrix(csv_file: Path) -> coo_matrix:
 
 
 def main() -> None:
-    """Simulate random sluge patterns."""
-    np.random.seed(69420)
+    """Simulate random sluge patterns.
 
+    Make sure the OpenFOAM 7 docker container is running before executing this script. To do so execute
+    `openfoam7-linux` in the terminal.
+    """
     params = dvc.api.params_show()
 
     for index in range(params["number_samples"]):
@@ -96,10 +100,12 @@ def main() -> None:
         subprocess.run(command, cwd=ROOT / "foam", shell=True)
 
         matrix = _build_matrix(ROOT / "foam/sim/matrix.csv")
-        save_npz(case_directory / "matrix.npz", matrix, compressed=False)
+        right_hand_side = rng.uniform(-1, 1, size=matrix.shape[0])
+        solution, _ = scipy.sparse.linalg.cg(matrix, right_hand_side, rtol=0, atol=1e-6)
 
-        for type_ in ["solution", "right_hand_side"]:
-            shutil.copy(ROOT / f"foam/sim/{type_}.csv", case_directory / f"{type_}.csv")
+        save_npz(case_directory / "matrix.npz", matrix, compressed=False)
+        np.savetxt(case_directory / "right_hand_side.csv", right_hand_side)
+        np.savetxt(case_directory / "solution.csv", solution)
 
 
 if __name__ == "__main__":
