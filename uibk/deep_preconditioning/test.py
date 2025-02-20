@@ -7,22 +7,22 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Generator
 
 import dvc.api
+import ilupp
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
 import torch
 from pyamg.aggregation import smoothed_aggregation_solver
-from scipy.sparse import csr_matrix, diags, lil_matrix
-from scipy.sparse.linalg import inv, spilu
+from scipy.sparse import csr_matrix
 from tqdm import tqdm
 
-from uibk.deep_preconditioning.data_set import SludgePatternDataSet
-from uibk.deep_preconditioning.model import PreconditionerNet
+import uibk.deep_preconditioning.data_set as data_sets
+import uibk.deep_preconditioning.model as models
 from uibk.deep_preconditioning.utils import benchmark_cg
 
 if TYPE_CHECKING:
     from matplotlib.figure import Figure
-    from scipy.sparse import csc_matrix, spmatrix
+    from scipy.sparse import spmatrix
     from spconv.pytorch import SparseConvTensor
     from torch.utils.data import Dataset
 
@@ -37,13 +37,15 @@ class BenchmarkSuite:
         data_set: The test data set to benchmark on.
         model: Our fully convolutional model to benchmark.
     """
+
     data_set: "Dataset"
     model: torch.nn.Module
     techniques: tuple[str, ...] = (
         "vanilla",
         "jacobi",
         "incomplete_cholesky",
-        "algebraic_multigrid",
+        "incomplete_lu",
+        # "algebraic_multigrid",
         "learned",
     )
     kappas = {name: [] for name in techniques}
@@ -75,24 +77,21 @@ class BenchmarkSuite:
         diagonal = matrix.diagonal()
         return csr_matrix(np.diag(1.0 / diagonal))
 
-    def _construct_incomplete_cholesky(self, matrix: np.ndarray) -> "csc_matrix":
+    def _construct_incomplete_cholesky(self, matrix: np.ndarray, fill_in: int = 0, threshold: float = 0) -> csr_matrix:
         """Construct the incomplete Cholesky preconditioner."""
-        size = matrix.shape[0]
+        if fill_in == 0 and threshold == 0.0:
+            icholprec = ilupp.ichol0(csr_matrix(matrix.astype(np.float64)))
+        else:
+            icholprec = ilupp.icholt(csr_matrix(matrix.astype(np.float64)), add_fill_in=fill_in, threshold=threshold)
 
-        lu_decomposition = spilu(csr_matrix(matrix).tocsc(), fill_factor=1.0, drop_tol=0.0)
-        lower = lu_decomposition.L
-        diagonal = diags(lu_decomposition.U.diagonal())  # https://is.gd/5PJcTp
+        return csr_matrix(icholprec @ icholprec.T)
 
-        pr = np.zeros((size, size))
-        pc = np.zeros((size, size))
+    def _construct_incomplete_lu(self, matrix: np.ndarray) -> csr_matrix:
+        """Construct the incomplete LU preconditioner."""
+        operator = ilupp.ILU0Preconditioner(csr_matrix(matrix.astype(np.float64)))
+        l_factor, u_factor = operator.factors()
 
-        pr[lu_decomposition.perm_r, np.arange(size)] = 1
-        pc[np.arange(size), lu_decomposition.perm_c] = 1
-
-        pr = lil_matrix(pr)
-        pc = lil_matrix(pc)
-
-        return inv((pr.T * (lower * diagonal * lower.T) * pc.T).tocsc())
+        return csr_matrix(l_factor @ u_factor)
 
     def _construct_algebraic_multigrid(self, matrix: np.ndarray) -> csr_matrix:
         """Construct the algebraic multigrid preconditioner."""
@@ -124,7 +123,7 @@ class BenchmarkSuite:
         for index in tqdm(range(len(self.data_set))):
             system_tril, _, right_hand_side, original_size = self.data_set[index]
             matrix = self._reconstruct_system(system_tril, original_size[0])
-            right_hand_side = right_hand_side[0, :original_size[0]].squeeze().cpu().numpy()
+            right_hand_side = right_hand_side[0, : original_size[0]].squeeze().cpu().numpy()
 
             if index == 0:
                 eigenvalues = dict(vanilla=self._compute_eigenvalues(matrix, np.eye(matrix.shape[0])))
@@ -153,7 +152,7 @@ class BenchmarkSuite:
                 self.successes[name].append(100 * (1 - info))
 
             if index == 0:
-                with open(RESULTS_DIRECTORY / "eigenvalues.csv", "w") as file_io:
+                with (RESULTS_DIRECTORY / "eigenvalues.csv").open(mode="w") as file_io:
                     writer = csv.writer(file_io)
                     writer.writerow(eigenvalues.keys())
                     writer.writerows(zip(*eigenvalues.values(), strict=True))
@@ -163,7 +162,7 @@ class BenchmarkSuite:
         for parameter, label in zip(
             ["durations", "iterations"],
             ["Durations [ms]", "Iterations [-]"],
-                strict=True,
+            strict=True,
         ):
             figure, ax = plt.subplots()
 
@@ -183,7 +182,7 @@ class BenchmarkSuite:
         """
         parameters = ["kappas", "densities", "iterations", "setups", "durations", "totals", "successes"]
 
-        with open(RESULTS_DIRECTORY / "table.csv", "w") as file_io:
+        with (RESULTS_DIRECTORY / "table.csv").open(mode="w") as file_io:
             file_io.write("technique," + ",".join(parameters) + "\n")
 
             for technique in self.techniques:
@@ -210,9 +209,13 @@ def main():
 
     params = dvc.api.params_show()
 
-    data_set = SludgePatternDataSet(stage="test", batch_size=1, shuffle=False)
+    data_set = getattr(data_sets, params["data"])(
+        stage="test",
+        batch_size=1,
+        shuffle=False,
+    )
 
-    model = PreconditionerNet(params["channels"])
+    model = getattr(models, params["model"])(params["channels"])
     model.load_state_dict(torch.load(Path("./assets/checkpoints/best.pt")))
     model = model.to(device)
 
