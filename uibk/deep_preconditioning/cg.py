@@ -87,4 +87,4 @@ def preconditioned_conjugate_gradient(
         errors.append((torch.inner(error_i, A @ error_i), res))
     end_time = time.perf_counter()
 
-    return end_time - start_time, len(errors) - 1, 1
+    return end_time - start_time, len(errors) - 1, 0
