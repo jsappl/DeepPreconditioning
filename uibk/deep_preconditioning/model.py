@@ -2,6 +2,7 @@
 
 Classes:
     PreconditionerNet: CNN returns lower triangular matrices for preconditioning.
+    PreconditionerSparseUNet: U-Net inspired architecture for preconditioning.
 """
 
 import spconv.pytorch as spconv
@@ -85,14 +86,30 @@ class PreconditionerSparseUNet(nn.Module):
             spconv.SubMConv2d(channels[3], channels[3], kernel_size=3, padding=1, indice_key="subm3"),
             nn.LeakyReLU(),
         )
-
-        self.bottleneck = spconv.SparseSequential(
-            spconv.SparseConv2d(channels[3], channels[4], kernel_size=3, stride=2, padding=1, indice_key="bneck"),
+        self.down3 = spconv.SparseSequential(
+            spconv.SparseConv2d(channels[3], channels[4], kernel_size=3, stride=2, padding=1, indice_key="down3"),
+            nn.LeakyReLU(),
+        )
+        self.enc4 = spconv.SparseSequential(
+            spconv.SubMConv2d(channels[4], channels[4], kernel_size=3, padding=1, indice_key="subm4"),
             nn.LeakyReLU(),
         )
 
+        self.bottleneck = spconv.SparseSequential(
+            spconv.SparseConv2d(channels[4], channels[5], kernel_size=3, stride=2, padding=1, indice_key="bneck"),
+            nn.LeakyReLU(),
+        )
+
+        self.up3 = spconv.SparseSequential(
+            spconv.SparseInverseConv2d(channels[5], channels[4], kernel_size=3, indice_key="bneck"),
+            nn.LeakyReLU(),
+        )
+        self.dec3 = spconv.SparseSequential(
+            spconv.SubMConv2d(channels[4], channels[4], kernel_size=3, padding=1, indice_key="subm4"),
+            nn.LeakyReLU(),
+        )
         self.up2 = spconv.SparseSequential(
-            spconv.SparseInverseConv2d(channels[4], channels[3], kernel_size=3, indice_key="bneck"),
+            spconv.SparseInverseConv2d(channels[4], channels[3], kernel_size=3, indice_key="down3"),
             nn.LeakyReLU(),
         )
         self.dec2 = spconv.SparseSequential(
@@ -128,12 +145,18 @@ class PreconditionerSparseUNet(nn.Module):
         enc2 = self.enc2(down1)  # process at R/2
         down2 = self.down2(enc2)  # downsample R/2 -> R/4
         enc3 = self.enc3(down2)  # process at R/4
+        down3 = self.down3(enc3)
+        enc4 = self.enc4(down3)
 
         # --- Bottleneck ---
-        bottleneck = self.bottleneck(enc3)
+        bottleneck = self.bottleneck(enc4)
 
         # --- Decoder ---
-        up2 = self.up2(bottleneck)
+        up3 = self.up3(bottleneck)
+        up3 = spconv.functional.sparse_add(up3, enc4)
+        dec3 = self.dec3(up3)
+
+        up2 = self.up2(dec3)
         up2 = spconv.functional.sparse_add(up2, enc3)
         dec2 = self.dec2(up2)
 
