@@ -39,9 +39,9 @@ class SludgePatternDataSet(Dataset):
 
         match stage:
             case "train":
-                self.folders = self._folders[:len(self._folders) * 80 // 100]
+                self.folders = self._folders[: len(self._folders) * 80 // 100]
             case "test":
-                self.folders = self._folders[len(self._folders) * 80 // 100:]
+                self.folders = self._folders[len(self._folders) * 80 // 100 :]
             case _:
                 raise AssertionError(f"Invalid stage {stage}")
         if shuffle:
@@ -83,39 +83,46 @@ class SludgePatternDataSet(Dataset):
             case_folder = self.folders[index * self.batch_size + batch_index]
 
             rows, columns, _, original_size, values = np.load(case_folder / "matrix.npz").values()
-            original_sizes += (original_size[0], )
+            original_sizes += (original_size[0],)
             difference = self.dof_max - original_size[0]
 
             # filter lower triangular part because of symmetry
-            (filter, ) = np.where(rows >= columns)
+            (filter,) = np.where(rows >= columns)
             rows = rows[filter]
             columns = columns[filter]
             values = values[filter]
             # add trivial equations for maximum degrees of freedom
             rows = np.append(rows, np.arange(original_size[0], self.dof_max))
             columns = np.append(columns, np.arange(original_size[0], self.dof_max))
-            values = np.append(values, np.ones((difference, )))
+            values = np.append(values, np.ones((difference,)))
 
             solution = np.loadtxt(case_folder / "solution.csv")
             right_hand_side = np.loadtxt(case_folder / "right_hand_side.csv")
 
             batch["features"].append(np.expand_dims(values, axis=-1))
-            batch["indices"].append(np.column_stack((np.full(len(values), batch_index), rows, columns), ))
+            batch["indices"].append(
+                np.column_stack(
+                    (np.full(len(values), batch_index), rows, columns),
+                )
+            )
             batch["solutions"].append(
                 np.expand_dims(
                     np.pad(solution, (0, difference), "constant", constant_values=1),
                     axis=0,
-                ))
+                )
+            )
             batch["right_hand_sides"].append(
                 np.expand_dims(
                     np.pad(right_hand_side, (0, difference), "constant", constant_values=1),
                     axis=0,
-                ))
+                )
+            )
 
         features = torch.from_numpy(np.vstack(batch["features"])).float().to(self.device)
         indices = torch.from_numpy(np.vstack(batch["indices"])).int().to(self.device)
         lower_triangular_systems = spconv.SparseConvTensor(
-            features, indices, [self.dof_max, self.dof_max], self.batch_size)
+            features, indices, [self.dof_max, self.dof_max], self.batch_size
+        )
 
         solutions = torch.from_numpy(np.vstack(batch["solutions"])).float().to(self.device)
         right_hand_sides = torch.from_numpy(np.vstack(batch["right_hand_sides"])).float().to(self.device)
@@ -177,25 +184,30 @@ class StAnDataSet(Dataset):
 
         for batch_index in range(self.batch_size):
             indices, values, solution, right_hand_side = np.load(
-                self.files[index * self.batch_size + batch_index]).values()
+                self.files[index * self.batch_size + batch_index]
+            ).values()
             original_sizes += solution.shape
             difference = self.dof_max - len(solution)
 
             # filter lower triangular part because of symmetry
-            (filter, ) = np.where(indices[0] >= indices[1])
+            (filter,) = np.where(indices[0] >= indices[1])
             indices = indices[:, filter]
             values = values[filter]
 
             batch["features"].append(np.expand_dims(values, axis=-1))
             batch["indices"].append(np.concatenate((np.full((len(values), 1), batch_index), indices.T), axis=1))
-            batch["solutions"].append(np.expand_dims(
-                np.pad(solution, (0, difference)),
-                axis=0,
-            ))
-            batch["right_hand_sides"].append(np.expand_dims(
-                np.pad(right_hand_side, (0, difference)),
-                axis=0,
-            ))
+            batch["solutions"].append(
+                np.expand_dims(
+                    np.pad(solution, (0, difference)),
+                    axis=0,
+                )
+            )
+            batch["right_hand_sides"].append(
+                np.expand_dims(
+                    np.pad(right_hand_side, (0, difference)),
+                    axis=0,
+                )
+            )
 
         features = torch.from_numpy(np.vstack(batch["features"])).float().to(self.device)
         indices = torch.from_numpy(np.vstack(batch["indices"])).int().to(self.device)
@@ -211,8 +223,8 @@ class RandomSPDDataSet(Dataset):
     """Random symmetric positive-definite matrices data set."""
 
     def __init__(
-            self, stage: str, dof: int, batch_size: int, sparsity: float = 0.99, length: int = 1000,
-            shuffle: bool = True) -> None:
+        self, stage: str, dof: int, batch_size: int, sparsity: float = 0.99, length: int = 1000, shuffle: bool = True
+    ) -> None:
         """Initialize the data set.
 
         Args:
@@ -241,9 +253,9 @@ class RandomSPDDataSet(Dataset):
 
         match stage:
             case "train":
-                self.files = list(self.save_dir.glob("*.npz"))[:length * 80 // 100]
+                self.files = list(self.save_dir.glob("*.npz"))[: length * 80 // 100]
             case "test":
-                self.files = list(self.save_dir.glob("*.npz"))[length * 80 // 100:]
+                self.files = list(self.save_dir.glob("*.npz"))[length * 80 // 100 :]
             case _:
                 raise AssertionError(f"Invalid stage {stage}")
         if shuffle:
@@ -253,7 +265,7 @@ class RandomSPDDataSet(Dataset):
         """Return the number of batches."""
         return len(self.files) // self.batch_size
 
-    def __getitem__(self, index: int) -> tuple[spconv.SparseConvTensor, torch.Tensor, torch.Tensor, tuple[int]]:
+    def __getitem__(self, index: int) -> tuple[spconv.SparseConvTensor, torch.Tensor, torch.Tensor, tuple[int, ...]]:
         """Return a single batch of random SPD matrices.
 
         The tensor format is as required in the `traveller59/spconv` package.
@@ -266,19 +278,23 @@ class RandomSPDDataSet(Dataset):
 
             rows, columns, _, _, values = np.load(file).values()
             matrix = load_npz(file)
-            original_sizes += (self.dof, )
+            original_sizes += (self.dof,)
 
             # filter lower triangular part because of symmetry
-            (filter, ) = np.where(rows >= columns)
+            (filter,) = np.where(rows >= columns)
             rows = rows[filter]
             columns = columns[filter]
             values = values[filter]
 
-            solution = np.ones((self.dof, ))
+            solution = np.ones((self.dof,))
             right_hand_side = matrix @ solution
 
             batch["features"].append(np.expand_dims(values, axis=-1))
-            batch["indices"].append(np.column_stack((np.full(len(values), batch_index), rows, columns), ))
+            batch["indices"].append(
+                np.column_stack(
+                    (np.full(len(values), batch_index), rows, columns),
+                )
+            )
             batch["solutions"].append(np.expand_dims(solution, axis=0))
             batch["right_hand_sides"].append(np.expand_dims(right_hand_side, axis=0))
 
@@ -306,8 +322,9 @@ class RandomSPDDataSet(Dataset):
 
         interim = np.zeros((self.dof, self.dof), dtype=np.float32)
 
+        rng = np.random.default_rng()
         for sample_index in sample_indices:
-            interim[row_indices[sample_index], col_indices[sample_index]] = np.random.randn()
+            interim[row_indices[sample_index], col_indices[sample_index]] = rng.standard_normal()
 
         alpha = 1e-3
         return interim @ interim.T + alpha * np.eye(self.dof)
