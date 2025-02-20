@@ -89,6 +89,9 @@ def main() -> None:
     """
     params = dvc.api.params_show()
 
+    pattern = f"s/^res [0-9]+/res {params['mesh_cells']}/"
+    subprocess.run(f"sed -i -E '{pattern}' blockMeshDict", cwd=ROOT / "foam/sim/system", shell=True)
+
     for index in range(params["number_samples"]):
         _sludge_pattern(resolution=params["resolution"])
 

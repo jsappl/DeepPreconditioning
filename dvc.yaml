@@ -4,11 +4,11 @@ stages:
     deps:
       - ./uibk/deep_preconditioning/generate_data.py
     outs:
-      - ./assets/data/raw/sludge_patterns/:
-          cache: false
+      - ./assets/data/raw/sludge_patterns/
     params:
       - number_samples
       - resolution
+      - mesh_cells
     desc: Generate linear systems from synthetic sludge patterns.
 
   train:
