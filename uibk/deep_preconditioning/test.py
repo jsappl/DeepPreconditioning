@@ -10,7 +10,6 @@ import dvc.api
 import ilupp
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy
 import torch
 from pyamg.aggregation import smoothed_aggregation_solver
 from scipy.sparse import csr_matrix
@@ -18,12 +17,14 @@ from tqdm import tqdm
 
 import uibk.deep_preconditioning.data_set as data_sets
 import uibk.deep_preconditioning.model as models
+from uibk.deep_preconditioning.cg import preconditioned_conjugate_gradient
 from uibk.deep_preconditioning.utils import benchmark_cg
 
 if TYPE_CHECKING:
     from matplotlib.figure import Figure
     from scipy.sparse import spmatrix
     from spconv.pytorch import SparseConvTensor
+    from torch import Tensor
     from torch.utils.data import Dataset
 
 RESULTS_DIRECTORY: Path = Path("./assets/results/")
@@ -59,86 +60,88 @@ class BenchmarkSuite:
 
     RESULTS_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
-    def _reconstruct_system(self, system_tril: "SparseConvTensor", original_size: int) -> np.ndarray:
+    def _reconstruct_system(self, system_tril: "SparseConvTensor", original_size: int) -> "Tensor":
         """Reconstruct the linear system from the sparse tensor."""
         assert system_tril.batch_size == 1, "Set batch size to one for testing"
 
         matrix = system_tril.dense()[0, 0, :original_size, :original_size]
         matrix += torch.tril(matrix, -1).T
 
-        return matrix.cpu().numpy()
+        return matrix.cpu().to(torch.float64)
 
-    def _construct_vanilla(self, matrix: np.ndarray) -> csr_matrix:
+    def _construct_vanilla(self, matrix: "Tensor") -> "Tensor":
         """Construct the baseline which is no preconditioner."""
-        return csr_matrix(np.eye(matrix.shape[0]))
+        return torch.eye(matrix.shape[0], dtype=torch.float64).to_sparse_csr()
 
-    def _construct_jacobi(self, matrix: np.ndarray) -> csr_matrix:
+    def _construct_jacobi(self, matrix: "Tensor") -> "Tensor":
         """Construct the Jacobi preconditioner."""
-        diagonal = matrix.diagonal()
-        return csr_matrix(np.diag(1.0 / diagonal))
+        data = 1 / matrix.diagonal()
+        indices = torch.vstack((torch.arange(matrix.shape[0]), torch.arange(matrix.shape[0])))
+        diagonal = torch.sparse_coo_tensor(indices, data, size=matrix.shape, dtype=torch.float64)
+        return diagonal.to_sparse_csr()
 
-    def _construct_incomplete_cholesky(self, matrix: np.ndarray, fill_in: int = 0, threshold: float = 0) -> csr_matrix:
+    def _construct_incomplete_cholesky(self, matrix: "Tensor", fill_in: int = 0, threshold: float = 0) -> "Tensor":
         """Construct the incomplete Cholesky preconditioner."""
         if fill_in == 0 and threshold == 0.0:
-            icholprec = ilupp.ichol0(csr_matrix(matrix.astype(np.float64)))
+            icholprec = ilupp.ichol0(csr_matrix(matrix.numpy()))
         else:
-            icholprec = ilupp.icholt(csr_matrix(matrix.astype(np.float64)), add_fill_in=fill_in, threshold=threshold)
+            icholprec = ilupp.icholt(csr_matrix(matrix.numpy()), add_fill_in=fill_in, threshold=threshold)
 
-        return csr_matrix(icholprec @ icholprec.T)
+        return torch.from_numpy((icholprec @ icholprec.T).toarray()).to_sparse_csr()
 
-    def _construct_incomplete_lu(self, matrix: np.ndarray) -> csr_matrix:
+    def _construct_incomplete_lu(self, matrix: "Tensor") -> "Tensor":
         """Construct the incomplete LU preconditioner."""
-        operator = ilupp.ILU0Preconditioner(csr_matrix(matrix.astype(np.float64)))
+        operator = ilupp.ILU0Preconditioner(csr_matrix(matrix.numpy()))
         l_factor, u_factor = operator.factors()
 
-        return csr_matrix(l_factor @ u_factor)
+        return torch.from_numpy((l_factor @ u_factor).toarray()).to_sparse_csr()
 
-    def _construct_algebraic_multigrid(self, matrix: np.ndarray) -> csr_matrix:
+    def _construct_algebraic_multigrid(self, matrix: "Tensor") -> "Tensor":
         """Construct the algebraic multigrid preconditioner."""
-        preconditioner = smoothed_aggregation_solver(matrix).aspreconditioner(cycle="V")
-        return csr_matrix(preconditioner.matmat(np.eye(matrix.shape[0], dtype=np.float32)))
+        preconditioner = smoothed_aggregation_solver(matrix.numpy()).aspreconditioner(cycle="V")
+        return torch.from_numpy(preconditioner.matmat(np.eye(matrix.shape[0], dtype=np.float64))).to_sparse_csr()
 
-    def _construct_learned(self, system_tril: "SparseConvTensor", original_size: int) -> csr_matrix:
+    def _construct_learned(self, system_tril: "SparseConvTensor", original_size: int) -> "Tensor":
         """Construct our preconditioner."""
         preconditioners_tril = self.model(system_tril)
         preconditioner = preconditioners_tril.dense()[0, 0, :original_size, :original_size]
         preconditioner = torch.matmul(preconditioner, preconditioner.transpose(-1, -2))
-        preconditioner = preconditioner.detach().cpu().numpy()
-        return csr_matrix(preconditioner)
+        return preconditioner.detach().cpu().to(torch.float64).to_sparse_csr()
 
-    def _compute_sparsity(self, matrix: "spmatrix") -> float:
+    def _compute_sparsity(self, matrix: "Tensor") -> float:
         """Compute the sparsity of a matrix."""
-        return 100 * matrix.getnnz() / (matrix.shape[0] * matrix.shape[1])
+        return 100 * len(matrix.values()) / (matrix.shape[0] * matrix.shape[1])
 
-    def _compute_kappa(self, matrix: np.ndarray, preconditioner: "spmatrix") -> float:
+    def _compute_kappa(self, matrix: "Tensor", preconditioner: "Tensor") -> float:
         """Compute the condition number."""
-        return np.linalg.cond(preconditioner @ matrix)
+        return torch.linalg.cond(preconditioner @ matrix).item()
 
-    def _compute_eigenvalues(self, matrix: np.ndarray, preconditioner: np.ndarray) -> list:
+    def _compute_eigenvalues(self, matrix: "Tensor", preconditioner: "Tensor") -> list:
         """Compute the eigenvalues of a matrix."""
-        return scipy.linalg.svdvals(preconditioner @ matrix).tolist()
+        return torch.linalg.svdvals(preconditioner @ matrix).tolist()
 
     def run(self) -> None:
         """Run the whole benchmark suite."""
         for index in tqdm(range(len(self.data_set))):
             system_tril, _, right_hand_side, original_size = self.data_set[index]
             matrix = self._reconstruct_system(system_tril, original_size[0])
-            right_hand_side = right_hand_side[0, : original_size[0]].squeeze().cpu().numpy()
+            right_hand_side = right_hand_side[0, : original_size[0]].squeeze().cpu().to(torch.float64)
 
-            if index == 0:
-                eigenvalues = dict(vanilla=self._compute_eigenvalues(matrix, np.eye(matrix.shape[0])))
+            eigenvalues = dict.fromkeys(self.techniques)
 
             for name in self.techniques:
-                start_time = time.perf_counter()
                 if name == "learned":
+                    start_time = time.perf_counter()
                     preconditioner = self._construct_learned(system_tril, original_size[0])
                 else:
+                    start_time = time.perf_counter()
                     preconditioner = getattr(self, f"_construct_{name}")(matrix)
                 stop_time = time.perf_counter()
                 setup = stop_time - start_time
 
                 density = self._compute_sparsity(preconditioner)
-                duration, iteration, info = benchmark_cg(matrix, right_hand_side, preconditioner)
+                # duration, iteration, info = benchmark_cg(matrix, right_hand_side, preconditioner)
+                duration, iteration, info = preconditioned_conjugate_gradient(matrix, right_hand_side, preconditioner)
                 kappa = self._compute_kappa(matrix, preconditioner)
                 if index == 0:
                     eigenvalues[name] = self._compute_eigenvalues(matrix, preconditioner)
