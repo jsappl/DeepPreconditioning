@@ -136,8 +136,7 @@ class BenchmarkSuite:
                 else:
                     start_time = time.perf_counter()
                     preconditioner = getattr(self, f"_construct_{name}")(matrix)
-                stop_time = time.perf_counter()
-                setup = stop_time - start_time
+                setup = time.perf_counter() - start_time if name != "vanilla" else 0.0
 
                 density = self._compute_sparsity(preconditioner)
                 # duration, iteration, info = benchmark_cg(matrix, right_hand_side, preconditioner)
