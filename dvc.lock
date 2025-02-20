@@ -5,49 +5,76 @@ stages:
     deps:
     - path: ./uibk/deep_preconditioning/generate_data.py
       hash: md5
-      md5: 7d8bbeda861afa73384e838f18ad9117
-      size: 3340
+      md5: 3d429c7452e03cd83c8772beee316cf9
+      size: 3648
     params:
       params.yaml:
-        number_samples: 1000
+        number_samples: 100
         resolution: 128
     outs:
     - path: ./assets/data/raw/sludge_patterns/
       hash: md5
-      md5: 058c1c598d7573c118a58a8d52c1b009.dir
-      size: 431915641
-      nfiles: 3000
+      md5: febb7459e55099bea6e1e31bba61cdd6.dir
+      size: 38730199
+      nfiles: 300
   train:
     cmd: python ./uibk/deep_preconditioning/train.py
     deps:
     - path: ./assets/data/raw/sludge_patterns/
       hash: md5
-      md5: 058c1c598d7573c118a58a8d52c1b009.dir
-      size: 431915641
-      nfiles: 3000
+      md5: febb7459e55099bea6e1e31bba61cdd6.dir
+      size: 38730199
+      nfiles: 300
+    - path: ./uibk/deep_preconditioning/data_set.py
+      hash: md5
+      md5: 1ec5ef394000b4897732fd4902de291d
+      size: 13909
     - path: ./uibk/deep_preconditioning/train.py
       hash: md5
-      md5: c1da276a5f86187d65211af25a832092
-      size: 5621
+      md5: c1ce04d58b065cd560f35e40ace216f6
+      size: 6044
     params:
       params.yaml:
         batch_size: 4
         channels:
         - 1
-        - 128
-        - 128
-        - 128
+        - 8
+        - 16
+        - 8
         - 1
         learning_rate: 0.001
-        patience: 16
+        patience: 8
     outs:
     - path: ./assets/checkpoints/
       hash: md5
-      md5: a535441b030913f8e7138174168ecf10.dir
-      size: 530568
+      md5: c9cf9da0b77ac0b6ba5723d96e28d2a9.dir
+      size: 8136
       nfiles: 1
     - path: ./assets/dvclive/
       hash: md5
-      md5: 4cfc54f2d752108aadc7d092c13d6b93.dir
-      size: 42455
-      nfiles: 6
+      md5: e03bf062fe79ac2aa38e1b94eb4f38ce.dir
+      size: 78570
+      nfiles: 7
+  test:
+    cmd: python ./uibk/deep_preconditioning/test.py
+    deps:
+    - path: ./assets/checkpoints/
+      hash: md5
+      md5: c9cf9da0b77ac0b6ba5723d96e28d2a9.dir
+      size: 8136
+      nfiles: 1
+    - path: ./assets/data/raw/sludge_patterns/
+      hash: md5
+      md5: febb7459e55099bea6e1e31bba61cdd6.dir
+      size: 38730199
+      nfiles: 300
+    - path: ./uibk/deep_preconditioning/test.py
+      hash: md5
+      md5: 946a780c99e2af37fe2f0692fcac6d31
+      size: 8904
+    outs:
+    - path: ./assets/results/
+      hash: md5
+      md5: 31c0795cba649d41e67db43aec3f5f8f.dir
+      size: 245776
+      nfiles: 3
