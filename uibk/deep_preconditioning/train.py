@@ -1,24 +1,41 @@
 """Implement model training methods and the loop."""
 
+import os
+import random
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import dvc.api
 import numpy as np
 import torch
-from dvclive import Live
+from dvclive.live import Live
 from scipy.sparse import csr_matrix
 from torch.utils.data.dataset import random_split
 
-from uibk.deep_preconditioning.data_set import SludgePatternDataSet
+import uibk.deep_preconditioning.data_set as data_sets
+import uibk.deep_preconditioning.model as models
 from uibk.deep_preconditioning.metrics import inverse_loss
-from uibk.deep_preconditioning.model import PreconditionerNet
 from uibk.deep_preconditioning.utils import benchmark_cg
 
 if TYPE_CHECKING:
     from torch import nn
     from torch.optim import Optimizer
     from torch.utils.data import Dataset, Subset
+
+SEED: int = 69
+
+
+random.seed(SEED)
+torch.manual_seed(SEED)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed(SEED)
+    torch.cuda.manual_seed_all(SEED)
+
+torch.use_deterministic_algorithms(True)
+
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"
 
 
 def _train_single_epoch(model: "nn.Module", data_set: "Dataset | Subset", optimizer: "Optimizer") -> float:
@@ -96,7 +113,7 @@ def _validate(model: "nn.Module", data_set: "Dataset | Subset") -> tuple[float, 
     return np.mean(val_losses).item(), np.mean(durations).item(), np.mean(iterations).item()
 
 
-class EarlyStopping():
+class EarlyStopping:
     """Stop the training when no more significant improvement."""
 
     def __init__(self, patience: int) -> None:
@@ -126,14 +143,18 @@ def main() -> None:
     """Run the main model training pipeline."""
     assert torch.cuda.is_available(), "CUDA not available"
     device = torch.device("cuda")
-    torch.manual_seed(69)
+    torch.manual_seed(SEED)
 
     params = dvc.api.params_show()
 
-    data_set = SludgePatternDataSet(stage="train", batch_size=params["batch_size"], shuffle=True)
+    data_set = getattr(data_sets, params["data"])(
+        stage="train",
+        batch_size=params["batch_size"],
+        shuffle=True,
+    )
     train_data, val_data = random_split(data_set, lengths=[0.95, 0.05])
 
-    model = PreconditionerNet(params["channels"]).to(device)
+    model = getattr(models, params["model"])(params["channels"]).to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=params["learning_rate"])
     early_stopping = EarlyStopping(patience=params["patience"])
@@ -145,16 +166,17 @@ def main() -> None:
         save_dvc_exp=True,
         dvcyaml=None,
     )
+    live.log_params(params)
 
     checkpoint_directory = Path("assets/checkpoints")
     checkpoint_directory.mkdir(parents=True, exist_ok=True)
 
     while True:
         train_loss = _train_single_epoch(model, train_data, optimizer)
-        live.log_metric("train/loss/log_inverse", np.log(train_loss))
+        live.log_metric("train/loss/inverse", train_loss)
 
         val_loss, durations, iterations = _validate(model, val_data)
-        live.log_metric("val/loss/log_inverse", np.log(val_loss))
+        live.log_metric("val/loss/inverse", val_loss)
         live.log_metric("val/metric/durations", durations)
         live.log_metric("val/metric/iterations", iterations)
 
