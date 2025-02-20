@@ -29,7 +29,8 @@ def sparse_matvec_mul(spconv_batch: "SparseConvTensor", vector_batch: torch.Tens
     output_batch = torch.zeros_like(vector_batch, device=vector_batch.device)
 
     spconv_batch = spconv_batch.replace_feature(
-        spconv_batch.features * vector_batch[batch_indices, column_indices].unsqueeze(-1))
+        spconv_batch.features * vector_batch[batch_indices, column_indices].unsqueeze(-1)
+    )
     for batch_index in range(spconv_batch.batch_size):
         filter = torch.where(batch_indices == batch_index)
         output_batch[batch_index] = torch.zeros(vector_batch.shape[-1], device=vector_batch.device).scatter_reduce(
@@ -42,8 +43,9 @@ def sparse_matvec_mul(spconv_batch: "SparseConvTensor", vector_batch: torch.Tens
     return output_batch
 
 
-def benchmark_cg(matrix: "ndarray", right_hand_side: "ndarray",
-                 preconditioner: "ndarray | csr_matrix | None" = None) -> tuple[float, int, int]:
+def benchmark_cg(
+    matrix: "ndarray", right_hand_side: "ndarray", preconditioner: "ndarray | csr_matrix | None" = None
+) -> tuple[float, int, int]:
     """Benchmark the (preconditioned) conjugate gradient method.
 
     Args:
