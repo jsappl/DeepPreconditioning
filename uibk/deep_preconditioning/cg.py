@@ -17,7 +17,7 @@ def stopping_criterion(_, rk, b):
     return torch.inner(rk, rk) / torch.inner(b, b)
 
 
-def conjugate_gradient(A, b, x0=None, x_true=None, rtol=1e-8, max_iter=100_000):
+def conjugate_gradient(A, b, x0=None, x_true=None, rtol=1e-8, max_iter=1024):
     """The conjugate gradient method for solving linear systems of equations."""
     x_hat = x0 if x0 is not None else torch.zeros_like(b)
     r = b - A @ x_hat  # residual
@@ -48,7 +48,7 @@ def conjugate_gradient(A, b, x0=None, x_true=None, rtol=1e-8, max_iter=100_000):
 
 
 def preconditioned_conjugate_gradient(
-    A, b: torch.Tensor, M: "Tensor", x0=None, x_true=None, rtol=1e-8, max_iter=100_000
+    A, b: torch.Tensor, M: "Tensor", x0=None, x_true=None, rtol=1e-8, max_iter=1024
 ):
     """The preconditioned conjugate gradient method for solving linear systems of equations.
 
