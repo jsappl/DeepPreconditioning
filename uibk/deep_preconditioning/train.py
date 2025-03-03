@@ -9,13 +9,12 @@ import dvc.api
 import numpy as np
 import torch
 from dvclive.live import Live
-from scipy.sparse import csr_matrix
 from torch.utils.data.dataset import random_split
 
 import uibk.deep_preconditioning.data_set as data_sets
 import uibk.deep_preconditioning.model as models
+from uibk.deep_preconditioning.cg import preconditioned_conjugate_gradient
 from uibk.deep_preconditioning.metrics import inverse_loss
-from uibk.deep_preconditioning.utils import benchmark_cg
 
 if TYPE_CHECKING:
     from torch import nn
@@ -93,19 +92,17 @@ def _validate(model: "nn.Module", data_set: "Dataset | Subset") -> tuple[float, 
 
             system = systems_tril.dense()[batch_index, 0, :original_size, :original_size]
             system += torch.tril(system, -1).transpose(-1, -2)
-            system = system.cpu().numpy()
+            system = system.to(torch.float64)
 
-            right_hand_side = right_hand_sides[batch_index, :original_size].squeeze().cpu().numpy()
+            right_hand_side = right_hand_sides[batch_index, :original_size].squeeze().to(torch.float64)
 
             preconditioner = preconditioners_tril.dense()[batch_index, 0, :original_size, :original_size]
-            preconditioner = torch.matmul(preconditioner, preconditioner.transpose(-1, -2))
-            preconditioner = preconditioner.cpu().numpy()
+            preconditioner = torch.matmul(preconditioner, preconditioner.transpose(-1, -2)).to(torch.float64)
 
-            preconditioner = csr_matrix(preconditioner)
-            duration, n_iterations, _ = benchmark_cg(
+            duration, n_iterations, _ = preconditioned_conjugate_gradient(
                 system,
                 right_hand_side,
-                preconditioner=preconditioner,
+                M=preconditioner,
             )
             durations.append(duration)
             iterations.append(n_iterations)
