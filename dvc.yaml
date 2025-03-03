@@ -14,6 +14,7 @@ stages:
   train:
     cmd: python ./uibk/deep_preconditioning/train.py
     deps:
+      - ./uibk/deep_preconditioning/data_set.py
       - ./uibk/deep_preconditioning/train.py
       - ./assets/data/raw/sludge_patterns/
     outs:
@@ -25,6 +26,15 @@ stages:
       - learning_rate
       - patience
     desc: Train a deep preconditioner on synthetic sludge patterns.
+  test:
+    cmd: python ./uibk/deep_preconditioning/test.py
+    deps:
+      - ./uibk/deep_preconditioning/test.py
+      - ./assets/checkpoints/
+      - ./assets/data/raw/sludge_patterns/
+    outs:
+      - ./assets/results/
+    desc: Test the trained deep preconditioner performance.
 
 metrics:
   - ./assets/dvclive/metrics.json
