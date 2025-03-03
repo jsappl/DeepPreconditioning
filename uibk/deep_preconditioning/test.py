@@ -18,11 +18,9 @@ from tqdm import tqdm
 import uibk.deep_preconditioning.data_set as data_sets
 import uibk.deep_preconditioning.model as models
 from uibk.deep_preconditioning.cg import preconditioned_conjugate_gradient
-from uibk.deep_preconditioning.utils import benchmark_cg
 
 if TYPE_CHECKING:
     from matplotlib.figure import Figure
-    from scipy.sparse import spmatrix
     from spconv.pytorch import SparseConvTensor
     from torch import Tensor
     from torch.utils.data import Dataset
@@ -44,8 +42,8 @@ class BenchmarkSuite:
     techniques: tuple[str, ...] = (
         "vanilla",
         "jacobi",
-        "incomplete_cholesky",
-        "incomplete_lu",
+        "incomplete_cholesky",  # unstable
+        # "incomplete_lu",  # unstable
         # "algebraic_multigrid",
         "learned",
     )
@@ -80,7 +78,7 @@ class BenchmarkSuite:
         diagonal = torch.sparse_coo_tensor(indices, data, size=matrix.shape, dtype=torch.float64)
         return diagonal.to_sparse_csr()
 
-    def _construct_incomplete_cholesky(self, matrix: "Tensor", fill_in: int = 0, threshold: float = 0) -> "Tensor":
+    def _construct_incomplete_cholesky(self, matrix: "Tensor", fill_in: int = 1, threshold: float = 0.1) -> "Tensor":
         """Construct the incomplete Cholesky preconditioner."""
         if fill_in == 0 and threshold == 0.0:
             icholprec = ilupp.ichol0(csr_matrix(matrix.numpy()))
@@ -91,9 +89,7 @@ class BenchmarkSuite:
 
     def _construct_incomplete_lu(self, matrix: "Tensor") -> "Tensor":
         """Construct the incomplete LU preconditioner."""
-        operator = ilupp.ILU0Preconditioner(csr_matrix(matrix.numpy()))
-        l_factor, u_factor = operator.factors()
-
+        l_factor, u_factor = ilupp.ilut(csr_matrix(matrix.numpy()))
         return torch.from_numpy((l_factor @ u_factor).toarray()).to_sparse_csr()
 
     def _construct_algebraic_multigrid(self, matrix: "Tensor") -> "Tensor":
@@ -139,7 +135,6 @@ class BenchmarkSuite:
                 setup = time.perf_counter() - start_time if name != "vanilla" else 0.0
 
                 density = self._compute_sparsity(preconditioner)
-                # duration, iteration, info = benchmark_cg(matrix, right_hand_side, preconditioner)
                 duration, iteration, info = preconditioned_conjugate_gradient(matrix, right_hand_side, preconditioner)
                 kappa = self._compute_kappa(matrix, preconditioner)
                 if index == 0:
