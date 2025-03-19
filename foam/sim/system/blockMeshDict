@@ -16,7 +16,7 @@ FoamFile
 
 convertToMeters 1;
 
-res 3; // cells per 0.5 m
+res 2; // cells per 0.5 m
 depth #calc "-0.5/$res";
 vertices
 (

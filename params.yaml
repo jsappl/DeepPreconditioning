@@ -1,6 +1,16 @@
-number_samples: 1000
+model: PreconditionerNet
+data: SludgePatternDataSet
+number_samples: 500
 resolution: 128
-channels: [1, 128, 128, 128, 1] # must be odd due to padding
+mesh_cells: 2
+channels:                             # must be odd due to padding
+- 1
+- 16
+- 32
+- 64
+- 32
+- 16
+- 1
 batch_size: 4
 learning_rate: 0.001
 patience: 16
