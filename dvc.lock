@@ -9,14 +9,14 @@ stages:
       size: 3809
     params:
       params.yaml:
-        mesh_cells: 2
+        mesh_cells: 3
         number_samples: 500
         resolution: 128
     outs:
     - path: ./assets/data/raw/sludge_patterns/
       hash: md5
-      md5: bc642c9e50920d092fe5179ddbca61fb.dir
-      size: 193604030
+      md5: f00fb1455098e66d9d65dd935fa00b58.dir
+      size: 437897486
       nfiles: 1500
   train:
     cmd: python ./uibk/deep_preconditioning/train.py
