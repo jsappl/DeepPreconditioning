@@ -3,6 +3,7 @@
 .viminfo
 foam/newInterFoam/Make/linux*
 platforms/
+assets  # symlink
 
 # Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python
