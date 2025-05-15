@@ -48,11 +48,13 @@ def inverse_loss(systems_tril: "SparseConvTensor", preconditioners_tril: "Sparse
     systems += torch.tril(systems, -1).transpose(-1, -2)
 
     preconditioned_systems = torch.matmul(preconditioners, systems)
+    batch_max = torch.amax(preconditioned_systems, dim=(1, 2), keepdim=True)
 
     identity = (
         torch.eye(systems.shape[1]).unsqueeze(0).expand((systems.shape[0], -1, -1)).to(preconditioned_systems.device)
     )
-    return torch.linalg.matrix_norm(preconditioned_systems - identity).mean()
+
+    return (batch_max * torch.linalg.matrix_norm((preconditioned_systems - identity) / batch_max)).mean()
 
 
 def hutchinson_trace(systems_tril: "SparseConvTensor", preconditioners_tril: "SparseConvTensor") -> torch.Tensor:
