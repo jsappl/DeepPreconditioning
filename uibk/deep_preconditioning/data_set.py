@@ -186,6 +186,12 @@ class StAnDataSet(Dataset):
             indices, values, solution, right_hand_side = np.load(
                 self.files[index * self.batch_size + batch_index]
             ).values()
+
+            max_value = values.max()
+            values /= max_value
+            solution /= max_value
+            right_hand_side /= max_value
+
             original_sizes += solution.shape
             difference = self.dof_max - len(solution)
 
