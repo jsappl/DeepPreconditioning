@@ -1,18 +1,18 @@
 """Test the performance of convetional and our preconditioner."""
 
 import csv
+import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Generator
 
 import dvc.api
-import ilupp
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from pyamg.aggregation import smoothed_aggregation_solver
-from scipy.sparse import csr_matrix
+from scipy.io import loadmat, savemat
 from tqdm import tqdm
 
 import uibk.deep_preconditioning.data_set as data_sets
@@ -43,7 +43,7 @@ class BenchmarkSuite:
         "vanilla",
         "jacobi",
         "incomplete_cholesky",  # unstable
-        # "incomplete_lu",  # unstable
+        "incomplete_lu",  # unstable
         # "algebraic_multigrid",
         "learned",
     )
@@ -78,19 +78,19 @@ class BenchmarkSuite:
         diagonal = torch.sparse_coo_tensor(indices, data, size=matrix.shape, dtype=torch.float64)
         return diagonal.to_sparse_csr()
 
-    def _construct_incomplete_cholesky(self, matrix: "Tensor", fill_in: int = 1, threshold: float = 0.1) -> "Tensor":
+    def _construct_incomplete_cholesky(self, matrix: "Tensor") -> "Tensor":
         """Construct the incomplete Cholesky preconditioner."""
-        if fill_in == 0 and threshold == 0.0:
-            icholprec = ilupp.ichol0(csr_matrix(matrix.numpy()))
-        else:
-            icholprec = ilupp.icholt(csr_matrix(matrix.numpy()), add_fill_in=fill_in, threshold=threshold)
-
-        return torch.from_numpy((icholprec @ icholprec.T).toarray()).to_sparse_csr()
+        savemat("matrix.mat", dict(A=matrix.numpy()))
+        subprocess.run(["octave", "scripts/octave_ichol.m"])
+        icholprec = loadmat("L_ichol.mat")["preconditioner"]
+        return torch.from_numpy(icholprec.toarray()).to_sparse_csr()
 
     def _construct_incomplete_lu(self, matrix: "Tensor") -> "Tensor":
         """Construct the incomplete LU preconditioner."""
-        l_factor, u_factor = ilupp.ilut(csr_matrix(matrix.numpy()))
-        return torch.from_numpy((l_factor @ u_factor).toarray()).to_sparse_csr()
+        savemat("matrix.mat", dict(A=matrix.numpy()))
+        subprocess.run(["octave", "scripts/octave_ilu.m"])
+        iluprec = loadmat("L_ilu.mat")["preconditioner"]
+        return torch.from_numpy(iluprec.toarray()).to_sparse_csr()
 
     def _construct_algebraic_multigrid(self, matrix: "Tensor") -> "Tensor":
         """Construct the algebraic multigrid preconditioner."""
