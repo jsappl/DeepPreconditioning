@@ -149,7 +149,7 @@ def main() -> None:
         batch_size=params["batch_size"],
         shuffle=True,
     )
-    train_data, val_data = random_split(data_set, lengths=[0.95, 0.05])
+    train_data, val_data = random_split(data_set, lengths=[0.90, 0.10])
 
     model = getattr(models, params["model"])(params["channels"]).to(device)
 
@@ -168,9 +168,15 @@ def main() -> None:
     checkpoint_directory = Path("assets/checkpoints")
     checkpoint_directory.mkdir(parents=True, exist_ok=True)
 
+    epoch = 1
     while True:
         train_loss = _train_single_epoch(model, train_data, optimizer)
         live.log_metric("train/loss/inverse", train_loss)
+
+        if epoch % 10 != 0:
+            live.next_step()
+            epoch += 1
+            continue
 
         val_loss, durations, iterations = _validate(model, val_data)
         live.log_metric("val/loss/inverse", val_loss)
@@ -186,6 +192,7 @@ def main() -> None:
         torch.save(model.state_dict(), checkpoint_directory / "best.pt")
 
         live.next_step()
+        epoch += 1
 
     live.end()
 
