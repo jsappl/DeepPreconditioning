@@ -1,6 +1,5 @@
 """Test the performance of convetional and our preconditioner."""
 
-import csv
 import subprocess
 import time
 from dataclasses import dataclass
@@ -10,6 +9,7 @@ from typing import TYPE_CHECKING, Generator
 import dvc.api
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import torch
 from pyamg.aggregation import smoothed_aggregation_solver
 from scipy.io import loadmat, savemat
@@ -54,6 +54,7 @@ class BenchmarkSuite:
     durations = {name: [] for name in techniques}
     totals = {name: [] for name in techniques}
     successes = {name: [] for name in techniques}
+    eigenvalues = {name: [] for name in techniques}
     histograms = dict()
 
     RESULTS_DIRECTORY.mkdir(parents=True, exist_ok=True)
@@ -123,8 +124,6 @@ class BenchmarkSuite:
             matrix = self._reconstruct_system(system_tril, original_size[0])
             right_hand_side = right_hand_side[0, : original_size[0]].squeeze().cpu().to(torch.float64)
 
-            eigenvalues = dict.fromkeys(self.techniques)
-
             for name in self.techniques:
                 if name == "learned":
                     start_time = time.perf_counter()
@@ -137,8 +136,7 @@ class BenchmarkSuite:
                 density = self._compute_sparsity(preconditioner)
                 duration, iteration, info = preconditioned_conjugate_gradient(matrix, right_hand_side, preconditioner)
                 kappa = self._compute_kappa(matrix, preconditioner)
-                if index == 0:
-                    eigenvalues[name] = self._compute_eigenvalues(matrix, preconditioner)
+                eigenvalues = self._compute_eigenvalues(matrix, preconditioner)
 
                 self.kappas[name].append(kappa)
                 self.densities[name].append(density)
@@ -147,12 +145,7 @@ class BenchmarkSuite:
                 self.durations[name].append(duration)
                 self.totals[name].append(setup + duration)
                 self.successes[name].append(100 * (1 - info))
-
-            if index == 0:
-                with (RESULTS_DIRECTORY / "eigenvalues.csv").open(mode="w") as file_io:
-                    writer = csv.writer(file_io)
-                    writer.writerow(eigenvalues.keys())
-                    writer.writerows(zip(*eigenvalues.values(), strict=True))
+                self.eigenvalues[name] += eigenvalues
 
     def plot_histograms(self) -> Generator[tuple[str, "Figure"], None, None]:
         """Plot histograms for the durations and iterations."""
@@ -177,25 +170,13 @@ class BenchmarkSuite:
 
         Keep in mind that it has to be consumed and rendered using LaTeX later on.
         """
-        parameters = ["kappas", "densities", "iterations", "setups", "durations", "totals", "successes"]
+        parameters = ["kappas", "densities", "iterations", "setups", "durations", "totals", "successes", "eigenvalues"]
 
-        with (RESULTS_DIRECTORY / "table.csv").open(mode="w") as file_io:
-            file_io.write("technique," + ",".join(parameters) + "\n")
-
+        for parameter in parameters:
+            data = pd.DataFrame()
             for technique in self.techniques:
-                line = technique
-
-                for parameter in parameters:
-                    line += "," + str(np.mean(getattr(self, parameter)[technique], dtype=float))
-
-                file_io.write(line + "\n")
-
-        with (RESULTS_DIRECTORY / "totals.csv").open(mode="w") as file_io:
-            file_io.write(",".join(self.techniques) + "\n")
-
-            for index in range(len(self.totals["vanilla"])):
-                line = ",".join([str(self.totals[technique][index]) for technique in self.techniques])
-                file_io.write(line + "\n")
+                data[technique] = getattr(self, parameter)[technique]
+            data.to_csv(RESULTS_DIRECTORY / f"all_{parameter}.csv", index=False)
 
 
 def main():
