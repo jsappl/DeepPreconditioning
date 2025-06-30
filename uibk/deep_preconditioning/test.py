@@ -81,14 +81,14 @@ class BenchmarkSuite:
     def _construct_incomplete_cholesky(self, matrix: "Tensor") -> "Tensor":
         """Construct the incomplete Cholesky preconditioner."""
         savemat("matrix.mat", dict(A=matrix.numpy()))
-        subprocess.run(["octave", "scripts/octave_ichol.m"])
+        subprocess.run(["octave", "--no-gui", "scripts/octave_ichol.m"])
         icholprec = loadmat("L_ichol.mat")["preconditioner"]
         return torch.from_numpy(icholprec.toarray()).to_sparse_csr()
 
     def _construct_incomplete_lu(self, matrix: "Tensor") -> "Tensor":
         """Construct the incomplete LU preconditioner."""
         savemat("matrix.mat", dict(A=matrix.numpy()))
-        subprocess.run(["octave", "scripts/octave_ilu.m"])
+        subprocess.run(["octave", "--no-gui", "scripts/octave_ilu.m"])
         iluprec = loadmat("L_ilu.mat")["preconditioner"]
         return torch.from_numpy(iluprec.toarray()).to_sparse_csr()
 
