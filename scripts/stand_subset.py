@@ -16,30 +16,32 @@ def _get_dof(file: Path) -> int:
     return len(solution)
 
 
-def _select_subset(source: Path, destination: Path, min: int, max: int, max_files: int) -> None:
-    """Select a subset of files based on degrees of freedom."""
+def _select_subset(source: Path, min: int, max: int):
+    """Generartor for files based on degrees of freedom."""
     files = list(source.glob("*.npz"))
-    count = 0
 
     for file in tqdm(files):
         dof = _get_dof(file)
 
         if min < dof < max:
-            os.link(file, destination / file.name)
-            count += 1
-
-        if count >= max_files:
-            break
+            yield file
 
 
 def main() -> None:
     """The main subset generation loop."""
-    for mode in ["train", "test"]:
-        source = ROOT / f"stand_small_{mode}"
-        destination = ROOT.parent / f"processed/stand_small_{mode}"
-        destination.mkdir(parents=True, exist_ok=True)
+    source = ROOT / "stand_small_train"
+    files = _select_subset(source, min=2950, max=3050)
 
-        _select_subset(source, destination, min=3950, max=4050, max_files=100 if mode == "train" else 10)
+    for n_files, file in enumerate(files):
+        if n_files < 900:
+            os.link(file, ROOT.parent / "processed/stand_small_train" / file.name)
+        elif n_files < 1000:
+            os.link(file, ROOT.parent / "processed/stand_small_test" / file.name)
+        elif n_files == 1000:
+            print(f"Selected {n_files} files, stopping.")
+            break
+        else:
+            raise ValueError(f"Unexpected number of files: {n_files}. Expected less than 1000.")
 
 
 if __name__ == "__main__":
